@@ -48,41 +48,42 @@ add_global_arguments(
 
 # include directories
 include_dirs = [
-    include_directories('.')
+    include_directories('include'),
+    include_directories('src/include')
 ]
 
 # source files
 capfs_sources = [
-    'cap-fs.c',
-    'fsops/init.c',
-    'fsops/destroy.c',
-    'fsops/getattr.c',
-    'fsops/access.c',
-    'fsops/opendir.c',
-    'fsops/readdir.c',
-    'fsops/releasedir.c',
-    'fsops/readlink.c',
-    'fsops/mknod.c',
-    'fsops/mkdir.c',
-    'fsops/symlink.c',
-    'fsops/unlink.c',
-    'fsops/rmdir.c',
-    'fsops/rename.c',
-    'fsops/link.c',
-    'fsops/chmod.c',
-    'fsops/chown.c',
-    'fsops/truncate.c',
-    'fsops/utimens.c',
-    'fsops/open.c',
-    'fsops/flush.c',
-    'fsops/fsync.c',
-    'fsops/release.c',
-    'fsops/read.c',
-    'fsops/write.c',
-    'fsops/statfs.c',
-    'fsops/create.c',
-    'fsops/ioctl.c',
-    'fsops/destroy.c'
+    'src/cap-fs.c',
+    'src/fsops/init.c',
+    'src/fsops/destroy.c',
+    'src/fsops/getattr.c',
+    'src/fsops/access.c',
+    'src/fsops/opendir.c',
+    'src/fsops/readdir.c',
+    'src/fsops/releasedir.c',
+    'src/fsops/readlink.c',
+    'src/fsops/mknod.c',
+    'src/fsops/mkdir.c',
+    'src/fsops/symlink.c',
+    'src/fsops/unlink.c',
+    'src/fsops/rmdir.c',
+    'src/fsops/rename.c',
+    'src/fsops/link.c',
+    'src/fsops/chmod.c',
+    'src/fsops/chown.c',
+    'src/fsops/truncate.c',
+    'src/fsops/utimens.c',
+    'src/fsops/open.c',
+    'src/fsops/flush.c',
+    'src/fsops/fsync.c',
+    'src/fsops/release.c',
+    'src/fsops/read.c',
+    'src/fsops/write.c',
+    'src/fsops/statfs.c',
+    'src/fsops/create.c',
+    'src/fsops/ioctl.c',
+    'src/fsops/destroy.c'
 ]
 
 # dependencies
