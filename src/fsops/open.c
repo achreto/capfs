@@ -46,8 +46,8 @@
 #include <limits.h>
 #include <pthread.h>
 
-#include "../cap-fs.h"
-#include "fsops.h"
+#include <capfs_internal.h>
+#include "../include/capfs_fsops.h"
 
 
 /**
@@ -67,7 +67,7 @@ int capfs_op_open(const char * path, struct fuse_file_info * fi)
 {
     LOG("path='%s'\n", path);
 
-    enum cap_fs_filetpe ft = cap_fs_debug_get_file_type(path);
+    cap_fs_filetype_t ft = cap_fs_debug_get_file_type(path);
     if (ft != CAP_FS_FILETYPE_FILE) {
         return -EINVAL;
     }

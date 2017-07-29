@@ -46,8 +46,8 @@
 #include <limits.h>
 #include <pthread.h>
 
-#include "../cap-fs.h"
-#include "fsops.h"
+#include <capfs_internal.h>
+#include "../include/capfs_fsops.h"
 
 /**
  * @brief Change the given object's owner and group to the provided values.

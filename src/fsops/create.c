@@ -47,8 +47,8 @@
 #include <pthread.h>
 
 
-#include "../cap-fs.h"
-#include "fsops.h"
+#include <capfs_internal.h>
+#include "../include/capfs_fsops.h"
 
 /**
  * @brief creates a new file

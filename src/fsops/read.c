@@ -46,8 +46,8 @@
 #include <limits.h>
 #include <pthread.h>
 
-#include "../cap-fs.h"
-#include "fsops.h"
+#include <capfs_internal.h>
+#include "../include/capfs_fsops.h"
 
 
 /**
@@ -72,7 +72,7 @@ int capfs_op_read(const char * path, char * rbuf, size_t size, off_t offset,
         return -EACCES;
     }
 
-    capref_t cap;
+    cap_fs_capref_t cap;
     size_t fsize;
     if (fi && fi->fh) {
         struct cap_fs_handle * fh = (struct cap_fs_handle *)fi->fh;

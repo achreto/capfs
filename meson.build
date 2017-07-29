@@ -25,7 +25,7 @@
 
 # project
 project(
-    'cap-fs',
+    'capfs',
     'c', 'cpp',
     version: '1.0.0',
     meson_version: '>= 0.38',
@@ -54,7 +54,8 @@ include_dirs = [
 
 # source files
 capfs_sources = [
-    'src/cap-fs.c',
+    'src/capfs.c',
+    'src/backend_dummy.c',
     'src/fsops/init.c',
     'src/fsops/destroy.c',
     'src/fsops/getattr.c',
@@ -104,7 +105,7 @@ configure_file(output: 'config.h',
 
 
 # build
-executable('cap-fs', capfs_sources,
+executable('capfs', capfs_sources,
            include_directories: include_dirs,
            dependencies: capfs_deps,
            c_args: ['-DFUSE_USE_VERSION=31'],

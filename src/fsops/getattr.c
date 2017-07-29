@@ -46,8 +46,8 @@
 #include <limits.h>
 #include <pthread.h>
 
-#include "../cap-fs.h"
-#include "fsops.h"
+#include <capfs_internal.h>
+#include "../include/capfs_fsops.h"
 
 
 
@@ -69,7 +69,7 @@ int capfs_op_getattr(const char * path, struct stat * stbuf,
 {
     LOG("path='%s', fh=%p\n", path, (fi ? (struct cap_fs_handle *)fi->fh : NULL));
 
-    enum cap_fs_filetpe t = CAP_FS_FILETYPE_NONE;
+    cap_fs_filetype_t t = CAP_FS_FILETYPE_NONE;
     size_t sz = 0;
     if (fi && fi->fh) {
         struct cap_fs_handle *h = (struct cap_fs_handle *)fi->fh;

@@ -24,25 +24,18 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef CAP_FS_DEBUG_H
-#define CAP_FS_DEBUG_H 1
+#ifndef CAP_FS_BACKEND_H
+#define CAP_FS_BACKEND_H 1
 
+#include <capfs.h>
 
-/* debugging utility */
-#define LOG(format, args...)                        \
-    do {fprintf(stderr, "## cap-fs # %s:%u # " format, \
-        __FUNCTION__, __LINE__, args); } while(0)
+/*
+ * DEBUG Functions for testing
+ */
 
+const char **cap_fs_debug_get_dirents(const char *path);
+cap_fs_filetype_t cap_fs_debug_get_file_type(const char *path);
+cap_fs_capref_t cap_fs_debug_get_caphandle(const char *path);
+size_t cap_fs_debug_get_filesize(const char *path);
 
-/* debugging utility */
-#define LOGA(format)                        \
-    do {fprintf(stderr, "## cap-fs # %s:%u # " format, \
-        __FUNCTION__, __LINE__); } while(0)
-
-
-/* macro for not yet implemented functions */
-#define NYI() LOG("%s\n", "FILESYSTEM OPERATION NOT YET IMPLEMENTED"); \
-              return -ENOTSUP;
-
-
-#endif //CAP_FS_DEBUG_H_H
+#endif //CAP_FS_BACKEND_H_H

@@ -46,8 +46,8 @@
 #include <limits.h>
 #include <pthread.h>
 
-#include "../cap-fs.h"
-#include "fsops.h"
+#include <capfs_internal.h>
+#include "../include/capfs_fsops.h"
 
 /**
  * @brief Write size bytes to the given file into the buffer buf, beginning
@@ -71,7 +71,7 @@ int capfs_op_write(const char * path, const char * wbuf, size_t size,
         return -EACCES;
     }
 
-    capref_t cap;
+    cap_fs_capref_t cap;
     /* obtain the cap handle form the filehandle */
     if (fi && fi->fh) {
         struct cap_fs_handle * fh = (struct cap_fs_handle *)fi->fh;

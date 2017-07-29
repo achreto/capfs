@@ -26,13 +26,7 @@
 
 #define _GNU_SOURCE /* don't declare *pt* functions  */
 
-#define FUSE_USE_VERSION 31
-
-#include "config.h"
-
-#include <fuse.h>
-#include <fuse_opt.h>
-#include <fuse_lowlevel.h>
+#include <capfs_internal.h>
 
 #include <assert.h>
 #include <stdio.h>
@@ -46,96 +40,25 @@
 #include <limits.h>
 #include <pthread.h>
 
-#include "cap-fs.h"
-#include "fsops/fsops.h"
-
-int verbosity = 0;
-
-
-/**
- * @brief the FUSE operations for the CAP-FS
- */
-
-static struct fuse_operations capfs_ops = {
-        .init       = capfs_op_init,
-        .getattr    = capfs_op_getattr,
-        .access     = capfs_op_access,
-        .opendir    = capfs_op_opendir,
-        .readdir    = capfs_op_readdir,
-        .releasedir = capfs_op_releasedir,
-        .readlink   = capfs_op_readlink,
-        .mknod      = capfs_op_mknod,
-        .mkdir      = capfs_op_mkdir,
-        .symlink    = capfs_op_symlink,
-        .unlink     = capfs_op_unlink,
-        .rmdir      = capfs_op_rmdir,
-        .rename     = capfs_op_rename,
-        .link       = capfs_op_link,
-        .chmod      = capfs_op_chmod,
-        .chown      = capfs_op_chown,
-        .truncate   = capfs_op_truncate,
-        .utimens    = capfs_op_utimens,
-        .open       = capfs_op_open,
-        .flush      = capfs_op_flush,
-        .fsync      = capfs_op_fsync,
-        .release    = capfs_op_release,
-        .read       = capfs_op_read,
-        .write      = capfs_op_write,
-        .statfs     = capfs_op_statfs,
-        .create     = capfs_op_create,
-        .ioctl      = capfs_op_ioctl,
-        .destroy    = capfs_op_destroy,
-};
-
-/**
- * @brief the cap-fs state
- */
-struct cap_fs capfs_st;
-
-/**
- * @brief cp-fs main function
- * @param argc
- * @param argv
- * @return
- */
-int main(int argc, char * argv[]) {
-    struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
-
-    LOG("%s", "-----------------------------------------------\n");
-    LOG("CAP-FS version %s\n", PACKAGE_VERSION);
-    LOG("FUSE library version %s\n", fuse_pkgversion());
-    fuse_lowlevel_version();
-    LOG("%s", "-----------------------------------------------\n");
-
-
-    /* TODO: initialize the connection to the capability  */
-
-    capfs_st.initialized = true;
-
-    LOG("%s\n", "calling fuse_main\n");
-
-    return fuse_main(args.argc, args.argv, &capfs_ops, NULL);
-}
-
 
 /*
  * DEBUG Functions for testing
  */
 
 static const char *debug_rootdir[6] = {
-    ".", 
-    "..", 
-    "file-01.dat", 
-    "file-02.dat", 
-    "folder", 
-    NULL 
+        ".",
+        "..",
+        "file-01.dat",
+        "file-02.dat",
+        "folder",
+        NULL
 };
 
 static const char *debug_folderdir[4] = {
-    ".", 
-    "..", 
-    "file-03.dat", 
-    NULL 
+        ".",
+        "..",
+        "file-03.dat",
+        NULL
 };
 
 const char ** cap_fs_debug_get_dirents(const char *path) {
@@ -148,7 +71,7 @@ const char ** cap_fs_debug_get_dirents(const char *path) {
     }
 }
 
-enum cap_fs_filetpe cap_fs_debug_get_file_type(const char *path)
+cap_fs_filetype_t cap_fs_debug_get_file_type(const char *path)
 {
     if (strcmp(path, "/") == 0) {
         return CAP_FS_FILETYPE_ROOT;
@@ -165,10 +88,10 @@ enum cap_fs_filetpe cap_fs_debug_get_file_type(const char *path)
     }
 }
 
-capref_t cap_fs_debug_get_caphandle(const char *path)
+cap_fs_capref_t cap_fs_debug_get_caphandle(const char *path)
 {
     (void)path;
-    return (capref_t){.capaddr = 0xcafebabe};
+    return (cap_fs_capref_t){.capaddr = 0xcafebabe};
 }
 
 size_t cap_fs_debug_get_filesize(const char *path)

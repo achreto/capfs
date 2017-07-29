@@ -24,52 +24,44 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#define _GNU_SOURCE /* don't declare *pt* functions  */
+#ifndef CAP_FS_INTERNAL_H
+#define CAP_FS_INTERNAL_H 1
 
-#define FUSE_USE_VERSION 31
 
+/* capfs generated configuration file config */
 #include "config.h"
 
+/* libfuse includes  */
 #include <fuse.h>
 #include <fuse_opt.h>
 #include <fuse_lowlevel.h>
 
-#include <assert.h>
-#include <stdio.h>
-#include <stddef.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <string.h>
-#include <stdint.h>
-#include <errno.h>
-#include <limits.h>
-#include <pthread.h>
+/* capfs public include */
+#include <capfs.h>
 
-#include <capfs_internal.h>
-#include "../include/capfs_fsops.h"
+/* capfs internal includes */
+#include <capfs_debug.h>
+#include <capfs_handle.h>
+#include <capfs_backend.h>
+#include <capfs_fsops.h>
+
+
+#include <stdbool.h>
 
 
 /**
- * @brief Create a symbolic link named "from" which, when evaluated, will lead
- *        to "to"
- *
- * @param from  path name from
- * @param to    path name from
- *
- * @return
- * 
- * Not required if you don't support symbolic links. NOTE: Symbolic-link 
- * support requires only readlink and symlink. FUSE itself will take care of 
- * tracking symbolic links in paths, so your path-evaluation code doesn't need 
- * to worry about it.
+ * @brief this struct stores the options for the cap-fs
  */
-int capfs_op_symlink(const char * from, const char * to)
-{
-    LOG("from='%s', to='%s'\n", from, to);
+struct cap_fs {
+    bool initialized;
+};
 
-    (void)from;
-    (void)to;
+/**
+ * @brief global cap state
+ */
+extern struct cap_fs capfs_g_st;
 
-    NYI();
-}
+
+
+
+#endif //CAP_FS_INTERNAL_H_H

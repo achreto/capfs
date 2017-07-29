@@ -24,81 +24,22 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef CAP_FS_CAP_FS_H
-#define CAP_FS_CAP_FS_H 1
+#ifndef CAP_FS_HANDLE_H
+#define CAP_FS_HANDLE_H 1
 
-#include <stdbool.h>
-
-
-/* debugging utility */
-#define LOG(format, args...)                        \
-    do {fprintf(stderr, "## cap-fs # %s:%u # " format, \
-        __FUNCTION__, __LINE__, args); } while(0)
-
-/* macro for not yet implemented functions */
-#define NYI() LOG("%s\n", "FILESYSTEM OPERATIONNOT YET IMPLEMENTED"); \
-              return -ENOTSUP;
-
-
+/* capfs public include */
+#include <capfs.h>
+#include <stdlib.h>
 
 /**
- * @brief this struct stores the options for the cap-fs
- */
-struct cap_fs {
-    bool initialized;
-};
-
-/**
- * @brief global cap state
- */
-extern struct cap_fs capfs_g_st;
-
-
-
-/**
- * @brief global options for the CAP-FS module.
- */
-extern struct cap_fs_options cap_fs_global_options;
-
-
-/**
- * @brief options for the IOCTL interface
- */
-enum cap_fs_ioctl {
-    CAP_FS_IOCTL_GET_CAP = 0,
-    CAP_FS_IOCTL_SET_CAP = 0,
-} ;
-
-/**
- * @brief enumeration of different file types
- */
-enum cap_fs_filetpe {
-    CAP_FS_FILETYPE_NONE,
-    CAP_FS_FILETYPE_ROOT,
-    CAP_FS_FILETYPE_DIRECTORY,
-    CAP_FS_FILETYPE_FILE,
-    CAP_FS_FILETYPE_SYMLINK,
-    CAP_FS_FILETYPE_HARDLINK,
-} ;
-
-/**
- * @brief stub representation for capabilities
- */
-typedef struct capref {
-    uint64_t capaddr;
-} capref_t;
-
-
-
-/**
- * @brief this stores/caches addition information for filehandles
+ * @brief this stores/caches addition information for file handles
  *
  * this structure is allcated and populated on open/opendir/create
  */
 struct cap_fs_handle {
-    enum cap_fs_filetpe type;
-    size_t size;
-    capref_t cap;
+    cap_fs_filetype_t type;
+    size_t            size;
+    cap_fs_capref_t   cap;
 };
 
 /**
@@ -112,18 +53,9 @@ static inline struct cap_fs_handle *cap_fs_handle_alloc() {
  * @brief frees a allocated cap_fs_handle struct
  */
 static inline void  cap_fs_handle_free(struct cap_fs_handle *h) {
-    free(h);
+    if (h) {
+        free(h);
+    }
 }
 
-
-
-/*
- * DEBUG Functions for testing
- */
-
-const char **cap_fs_debug_get_dirents(const char *path);
-enum cap_fs_filetpe cap_fs_debug_get_file_type(const char *path);
-capref_t cap_fs_debug_get_caphandle(const char *path);
-size_t cap_fs_debug_get_filesize(const char *path);
-
-#endif //CAP_FS_CAP_FS_H_H
+#endif //CAP_FS_HANDLE_H_H

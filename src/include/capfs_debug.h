@@ -24,52 +24,26 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#define _GNU_SOURCE /* don't declare *pt* functions  */
+#ifndef CAP_FS_DEBUG_H
+#define CAP_FS_DEBUG_H 1
 
-#define FUSE_USE_VERSION 31
-
-#include "config.h"
-
-#include <fuse.h>
-#include <fuse_opt.h>
-#include <fuse_lowlevel.h>
-
-#include <assert.h>
 #include <stdio.h>
-#include <stddef.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <string.h>
-#include <stdint.h>
-#include <errno.h>
-#include <limits.h>
-#include <pthread.h>
 
-#include <capfs_internal.h>
-#include "../include/capfs_fsops.h"
+/* debugging utility */
+#define LOG(format, args...)                        \
+    do {fprintf(stderr, "## cap-fs # %s:%u # " format, \
+        __FUNCTION__, __LINE__, args); } while(0)
 
 
-/**
- * @brief Create a symbolic link named "from" which, when evaluated, will lead
- *        to "to"
- *
- * @param from  path name from
- * @param to    path name from
- *
- * @return
- * 
- * Not required if you don't support symbolic links. NOTE: Symbolic-link 
- * support requires only readlink and symlink. FUSE itself will take care of 
- * tracking symbolic links in paths, so your path-evaluation code doesn't need 
- * to worry about it.
- */
-int capfs_op_symlink(const char * from, const char * to)
-{
-    LOG("from='%s', to='%s'\n", from, to);
+/* debugging utility */
+#define LOGA(format)                        \
+    do {fprintf(stderr, "## cap-fs # %s:%u # " format, \
+        __FUNCTION__, __LINE__); } while(0)
 
-    (void)from;
-    (void)to;
 
-    NYI();
-}
+/* macro for not yet implemented functions */
+#define NYI() LOG("%s\n", "FILESYSTEM OPERATION NOT YET IMPLEMENTED"); \
+              return -ENOTSUP;
+
+
+#endif //CAP_FS_DEBUG_H_H

@@ -46,8 +46,8 @@
 #include <limits.h>
 #include <pthread.h>
 
-#include "../cap-fs.h"
-#include "fsops.h"
+#include <capfs_internal.h>
+#include "../include/capfs_fsops.h"
 
 
 /**
@@ -100,9 +100,15 @@ int capfs_op_ioctl(const char *path, int cmd, void *arg,
     }
 
     switch (cmd) {
-        case CAP_FS_IOCTL_GET_CAP:
-            *(capref_t *)data = cap_fs_debug_get_caphandle(path);
+        case CAP_FS_IOCTL_OP_GET_CAP:
+            *(cap_fs_capref_t *)data = cap_fs_debug_get_caphandle(path);
             return 0;
+        case CAP_FS_IOCTL_OP_SET_CAP:
+            return -EINVAL;
+        case CAP_FS_IOCTL_OP_IDENTIFY:
+            return -EINVAL;
+        default:
+            return -EINVAL;
     }
 
     return -EINVAL;
