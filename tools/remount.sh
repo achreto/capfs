@@ -46,4 +46,4 @@ fi
 echo "Create directory and mount"
 mkdir -p $TEST_MOUNT
 
-./cap-fs $TEST_MOUNT -s -d
+./capfs $TEST_MOUNT -s -d
