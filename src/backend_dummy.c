@@ -41,20 +41,51 @@
 #include <pthread.h>
 
 
+/*
+ * ============================================================================
+ * some dummy capability store
+ * ============================================================================
+ */
+
+
 struct capability {
     const char *name;
     int perms;
-    size_t size;
+    const char *payload;
     cap_fs_filetype_t type;
 };
 
 
 static struct capability capstore[] = {
-    {.name = "/", .perms = 0755, .size = 0, .type = CAP_FS_FILETYPE_ROOT},
-    {.name = "/file-01.dat", .perms = 0644, .size = 42,  .type = CAP_FS_FILETYPE_FILE},
-    {.name = "/file-01.dat", .perms = 0644, .size = 42,  .type = CAP_FS_FILETYPE_FILE},
-    {.name = "/folder", .perms = 0755, .size = 0, .type = CAP_FS_FILETYPE_DIRECTORY},
-    {.name = "/folder/file-03.dat", .perms = 0644, .size = 42,  .type = CAP_FS_FILETYPE_FILE},
+    {
+            .name = "/",
+            .perms = 0755,
+            .payload = NULL,
+            .type = CAP_FS_FILETYPE_ROOT
+    },
+    {
+            .name = "/file-01.dat",
+            .perms = 0644,
+            .payload = "FILE 1 CONTENT!\n",
+            .type = CAP_FS_FILETYPE_FILE
+    },
+    {
+            .name = "/file-02.dat",
+            .perms = 0644,
+            .payload = "FILE 2 CONTENT!\n",
+            .type = CAP_FS_FILETYPE_FILE
+    },
+    {
+            .name = "/folder",
+            .perms = 0755,
+            .payload = NULL,
+            .type = CAP_FS_FILETYPE_DIRECTORY},
+    {
+            .name = "/folder/file-03.dat",
+            .perms = 0644,
+            .payload = "FILE 3 CONTENT!\n",
+            .type = CAP_FS_FILETYPE_FILE
+    },
 };
 
 #define NUMCAPS (sizeof(capstore) / sizeof(struct capability))
@@ -70,7 +101,6 @@ static struct capability *folderdir[2] = {
     capstore+4,
     NULL
 };
-
 
 
 
@@ -158,15 +188,19 @@ const char *capfs_backend_get_direntry(cap_fs_capref_t cap,
     }
 
     if (offset == 0) {
+        LOG("cap=" PRIxCAP "offset=%li => ..\n", PRI_CAP(cap), offset);
         return "..";
     }
 
     if (offset == 1) {
+        LOG("cap=" PRIxCAP "offset=%li => ..\n", PRI_CAP(cap), offset);
         return ".";
     }
 
     if (offset < maxoffset) {
-        return dir[offset]->name;
+        LOG("cap=" PRIxCAP "offset=%li => %s\n", PRI_CAP(cap), offset,
+            dir[offset - 2]->name + 1);
+        return dir[offset - 2]->name + 1;
     }
 
     return NULL;
@@ -177,15 +211,23 @@ int capfs_backend_resolve_path(cap_fs_capref_t root,
                                const char *path,
                                cap_fs_capref_t *retcap)
 {
-    LOG("root=" PRIxCAP "path=%s\n", PRI_CAP(root), path);
+    LOG("root=" PRIxCAP " path=%s\n", PRI_CAP(root), path);
 
     if (root.capaddr == root_cap.capaddr) {
         for (size_t i = 0; i < NUMCAPS; i++) {
+            LOG("strcmp='%s' '%s'\n" , path, capstore[i].name);
+
             if (!strcmp(capstore[i].name, path)) {
                 *retcap =  MKCAP(i);
+
+                LOG("path '%s' found at cap " PRIxCAP "\n", path, PRI_CAP(*retcap));
+
                 return 0;
             }
         }
+
+        LOG("INVALID: root=" PRIxCAP " path=%s\n", PRI_CAP(root), path);
+
         return -ENOENT;
     } else {
         LOG("resolve with non-root cap not supported. path='%s'\n", path);
@@ -196,7 +238,7 @@ int capfs_backend_resolve_path(cap_fs_capref_t root,
 
 cap_fs_filetype_t capfs_backend_get_filetype_cap(cap_fs_capref_t cap)
 {
-    LOG("cap=" PRIxCAP "\n", PRI_CAP(root));
+    LOG("cap=" PRIxCAP "\n", PRI_CAP(cap));
 
     if (cap.capaddr < NUMCAPS) {
         return capstore[cap.capaddr].type;
@@ -209,8 +251,8 @@ int capfs_backend_get_capsize(cap_fs_capref_t cap, size_t *retsize)
     LOG("cap=" PRIxCAP "\n", PRI_CAP(cap));
 
     if (cap.capaddr < NUMCAPS) {
-        if (retsize) {
-            *retsize = capstore[cap.capaddr].size;
+        if (retsize && (capstore[cap.capaddr].payload)) {
+            *retsize = strlen(capstore[cap.capaddr].payload);
         }
         return 0;
     }
@@ -289,9 +331,39 @@ int capfs_backend_read(cap_fs_capref_t cap, off_t offset,
     LOG("cap=" PRIxCAP ", offset=%li, rbuf=%p, size=%zu\n", PRI_CAP(cap), offset,
         rbuf, bytes);
 
-    (void)cap;
+    if (!(cap.capaddr < NUMCAPS)) {
+        return 0;
+    }
 
-    return 0;
+    if (offset < 0) {
+        offset = 0;
+    }
+
+    struct capability *c = &capstore[cap.capaddr];
+    if (c->type != CAP_FS_FILETYPE_FILE) {
+        return -EACCES;
+    }
+
+    if ((size_t) offset > strlen(c->payload)) {
+        return 0;
+    }
+
+    LOG("copying cap:" PRIxCAP " -> %p \n", PRI_CAP(cap), rbuf);
+
+    const char *p = c->payload;
+
+    size_t i = 0;
+    while(*p) {
+        if (i == bytes) {
+            break;
+        }
+
+        rbuf[i] = *p;
+        p++;
+        i++;
+    }
+
+    return i;
 }
 
 int capfs_backend_write(cap_fs_capref_t cap, off_t offset,
