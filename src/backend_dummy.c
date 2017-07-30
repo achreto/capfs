@@ -41,22 +41,37 @@
 #include <pthread.h>
 
 
-
-static const char *debug_rootdir[6] = {
-        ".",
-        "..",
-        "file-01.dat",
-        "file-02.dat",
-        "folder",
-        NULL
+struct capability {
+    const char *name;
+    int perms;
+    size_t size;
+    cap_fs_filetype_t type;
 };
 
-static const char *debug_folderdir[4] = {
-        ".",
-        "..",
-        "file-03.dat",
-        NULL
+
+static struct capability capstore[] = {
+    {.name = "/", .perms = 0755, .size = 0, .type = CAP_FS_FILETYPE_ROOT},
+    {.name = "/file-01.dat", .perms = 0644, .size = 42,  .type = CAP_FS_FILETYPE_FILE},
+    {.name = "/file-01.dat", .perms = 0644, .size = 42,  .type = CAP_FS_FILETYPE_FILE},
+    {.name = "/folder", .perms = 0755, .size = 0, .type = CAP_FS_FILETYPE_DIRECTORY},
+    {.name = "/folder/file-03.dat", .perms = 0644, .size = 42,  .type = CAP_FS_FILETYPE_FILE},
 };
+
+#define NUMCAPS (sizeof(capstore) / sizeof(struct capability))
+
+static struct capability *rootdir[4] = {
+    capstore+1,
+    capstore+2,
+    capstore+3,
+    NULL
+};
+
+static struct capability *folderdir[2] = {
+    capstore+4,
+    NULL
+};
+
+
 
 
 /*
@@ -104,16 +119,44 @@ int capfs_backend_destroy(void *st)
  * ============================================================================
  */
 
+#define MKCAP(caddr) (cap_fs_capref_t){.capaddr = (caddr)}
+
+static cap_fs_capref_t root_cap = MKCAP(0);
 
 cap_fs_capref_t capfs_backend_get_rootcap(void)
 {
-    return (cap_fs_capref_t){.capaddr = 0xcafebabe};
+    return root_cap;
 }
 
 const char *capfs_backend_get_direntry(cap_fs_capref_t cap,
                                        off_t offset)
 {
-    (void)cap;
+    LOG("cap=" PRIxCAP "offset=%li\n", PRI_CAP(cap), offset);
+
+    if (!(cap.capaddr < NUMCAPS)) {
+        return NULL;
+    }
+
+    if (offset < 0) {
+        return NULL;
+    }
+
+    struct capability *c = &capstore[cap.capaddr];
+    struct capability **dir = NULL;
+    off_t maxoffset = 2;
+    switch(c->type) {
+        case CAP_FS_FILETYPE_ROOT :
+            dir = rootdir;
+            maxoffset += 3;
+            break;
+        case CAP_FS_FILETYPE_DIRECTORY :
+            dir = folderdir;
+            maxoffset += 1;
+            break;
+        default:
+            return NULL;
+    }
+
     if (offset == 0) {
         return "..";
     }
@@ -122,7 +165,11 @@ const char *capfs_backend_get_direntry(cap_fs_capref_t cap,
         return ".";
     }
 
-    return 0;
+    if (offset < maxoffset) {
+        return dir[offset]->name;
+    }
+
+    return NULL;
 }
 
 
@@ -130,39 +177,54 @@ int capfs_backend_resolve_path(cap_fs_capref_t root,
                                const char *path,
                                cap_fs_capref_t *retcap)
 {
-    (void)root;
-    (void)path;
-    (void)retcap;
+    LOG("root=" PRIxCAP "path=%s\n", PRI_CAP(root), path);
 
-    NYI();
+    if (root.capaddr == root_cap.capaddr) {
+        for (size_t i = 0; i < NUMCAPS; i++) {
+            if (!strcmp(capstore[i].name, path)) {
+                *retcap =  MKCAP(i);
+                return 0;
+            }
+        }
+        return -ENOENT;
+    } else {
+        LOG("resolve with non-root cap not supported. path='%s'\n", path);
+        return -ENOTSUP;
+    }
 }
 
-int capfs_backend_get_caphandle(const char *path, cap_fs_capref_t *retcap)
-{
-    (void)path;
-    (void)retcap;
-
-    NYI();
-}
 
 cap_fs_filetype_t capfs_backend_get_filetype_cap(cap_fs_capref_t cap)
 {
-    (void)cap;
-    NYI();
+    LOG("cap=" PRIxCAP "\n", PRI_CAP(root));
+
+    if (cap.capaddr < NUMCAPS) {
+        return capstore[cap.capaddr].type;
+    }
+    return CAP_FS_FILETYPE_NONE;
 }
 
 int capfs_backend_get_capsize(cap_fs_capref_t cap, size_t *retsize)
 {
-    (void)cap;
-    (void)retsize;
-    NYI();
+    LOG("cap=" PRIxCAP "\n", PRI_CAP(cap));
+
+    if (cap.capaddr < NUMCAPS) {
+        if (retsize) {
+            *retsize = capstore[cap.capaddr].size;
+        }
+        return 0;
+    }
+    return -EACCES;
 }
 
 int capfs_backend_get_perms(cap_fs_capref_t cap)
 {
+    LOG("cap=" PRIxCAP "\n", PRI_CAP(cap));
 
-    (void)cap;
-    NYI();
+    if (cap.capaddr < NUMCAPS) {
+        return capstore[cap.capaddr].perms;
+    }
+    return 0;
 }
 
 
@@ -243,32 +305,3 @@ int capfs_backend_write(cap_fs_capref_t cap, off_t offset,
     return 0;
 }
 
-
-
-
-const char ** cap_fs_debug_get_dirents(const char *path) {
-    if (strcmp(path, "/") == 0) {
-        return debug_rootdir;
-    } else if (strcmp(path+1, "folder/") == 0) {
-        return debug_folderdir;
-    } else {
-        return NULL;
-    }
-}
-
-cap_fs_filetype_t cap_fs_debug_get_file_type(const char *path)
-{
-    if (strcmp(path, "/") == 0) {
-        return CAP_FS_FILETYPE_ROOT;
-    } else if (strcmp(path+1, "file-01.dat") == 0) {
-        return CAP_FS_FILETYPE_FILE;
-    } else if (strcmp(path+1, "file-02.dat") == 0) {
-        return CAP_FS_FILETYPE_FILE;
-    } else if (strcmp(path+1, "folder") == 0) {
-        return CAP_FS_FILETYPE_DIRECTORY;
-    } else if (strcmp(path+1, "folder/file-03.dat") == 0) {
-        return CAP_FS_FILETYPE_FILE;
-    } else {
-        return CAP_FS_FILETYPE_NONE;
-    }
-}

@@ -47,8 +47,6 @@ int capfs_backend_resolve_path(cap_fs_capref_t root,
 const char *capfs_backend_get_direntry(cap_fs_capref_t cap,
                                        off_t offset);
 
-int capfs_backend_get_caphandle(const char *path, cap_fs_capref_t *retcap);
-
 cap_fs_filetype_t capfs_backend_get_filetype_cap(cap_fs_capref_t cap);
 
 int capfs_backend_get_capsize(cap_fs_capref_t cap, size_t *retsize);
