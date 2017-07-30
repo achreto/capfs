@@ -69,7 +69,7 @@ int capfs_op_ioctl(const char *path, int cmd, void *arg,
         cap = ((struct capfs_handle *)fi->fh)->cap;
         ft = ((struct capfs_handle *)fi->fh)->type;
     } else {
-        if (!capfs_backend_resolve_path(CAPFS_ROOTCAP, path, &cap)) {
+        if (capfs_backend_resolve_path(CAPFS_ROOTCAP, path, &cap)) {
             return -ENOENT;
         }
         ft = capfs_backend_get_filetype_cap(cap);

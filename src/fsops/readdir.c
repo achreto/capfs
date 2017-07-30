@@ -86,10 +86,10 @@ int capfs_op_readdir(const char * path, void * dbuf, fuse_fill_dir_t filler,
 
     const char *dirent = NULL;
     while((dirent = capfs_backend_get_direntry(cap, offset)) != NULL) {
+        LOG("path=%s\n", dirent);
         filler(dbuf, dirent, NULL, 0, 0);
         offset++;
     }
-
 
     return 0;
 }

@@ -45,7 +45,8 @@ int capfs_op_opendir(const char * path, struct fuse_file_info * fi)
     assert(path);
 
     cap_fs_capref_t cap;
-    if (!capfs_backend_resolve_path(CAPFS_ROOTCAP, path, &cap)) {
+    if (capfs_backend_resolve_path(CAPFS_ROOTCAP, path, &cap)) {
+        LOG("path '%s' not found\n", path);
         return -EINVAL;
     }
 
@@ -56,6 +57,7 @@ int capfs_op_opendir(const char * path, struct fuse_file_info * fi)
         case CAP_FS_FILETYPE_DIRECTORY:
             break;
         default:
+            LOG("path '%s' is not a directory\n", path);
             return -EINVAL;
     }
 

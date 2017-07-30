@@ -45,7 +45,7 @@ int capfs_op_access(const char * path, int mask)
     LOG("path='%s, mask=0x%x'\n", path, mask);
 
     cap_fs_capref_t cap;
-    if (!capfs_backend_resolve_path(CAPFS_ROOTCAP, path, &cap)) {
+    if (capfs_backend_resolve_path(CAPFS_ROOTCAP, path, &cap)) {
         return -ENOENT;
     }
 
