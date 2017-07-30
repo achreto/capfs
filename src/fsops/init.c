@@ -24,30 +24,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#define _GNU_SOURCE /* don't declare *pt* functions  */
-
-#define FUSE_USE_VERSION 31
-
-#include "config.h"
-
-#include <fuse.h>
-#include <fuse_opt.h>
-#include <fuse_lowlevel.h>
-
-#include <assert.h>
-#include <stdio.h>
-#include <stddef.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <string.h>
-#include <stdint.h>
-#include <errno.h>
-#include <limits.h>
-#include <pthread.h>
 
 #include <capfs_internal.h>
-#include "../include/capfs_fsops.h"
 
 
 /**
@@ -74,5 +52,5 @@ void *capfs_op_init(struct fuse_conn_info * conn,
     /* TODO: set the options accordningly */
     cfg->kernel_cache = 1;
 
-    return NULL;
+    return capfs_backend_init(conn, cfg);
 }

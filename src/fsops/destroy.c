@@ -24,30 +24,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#define _GNU_SOURCE /* don't declare *pt* functions  */
-
-#define FUSE_USE_VERSION 31
-
-#include "config.h"
-
-#include <fuse.h>
-#include <fuse_opt.h>
-#include <fuse_lowlevel.h>
-
-#include <assert.h>
-#include <stdio.h>
-#include <stddef.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <string.h>
-#include <stdint.h>
-#include <errno.h>
-#include <limits.h>
-#include <pthread.h>
 
 #include <capfs_internal.h>
-#include "../include/capfs_fsops.h"
 
 
 /**
@@ -58,5 +36,7 @@ void capfs_op_destroy(void* private_data)
 {
     LOG("private_data=%p\n", private_data);
 
-    return;
+    if (!capfs_backend_destroy(private_data)) {
+        LOG("WARNING: backend destroy failed, pdata=%p...\n", private_data);
+    }
 }

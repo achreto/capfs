@@ -24,30 +24,11 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#define _GNU_SOURCE /* don't declare *pt* functions  */
-
-#define FUSE_USE_VERSION 31
-
-#include "config.h"
-
-#include <fuse.h>
-#include <fuse_opt.h>
-#include <fuse_lowlevel.h>
+#include <capfs_internal.h>
 
 #include <assert.h>
-#include <stdio.h>
-#include <stddef.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <string.h>
-#include <stdint.h>
 #include <errno.h>
-#include <limits.h>
-#include <pthread.h>
 
-#include <capfs_internal.h>
-#include "../include/capfs_fsops.h"
 
 /**
  * @brief Write size bytes to the given file into the buffer buf, beginning
@@ -66,27 +47,36 @@ int capfs_op_write(const char * path, const char * wbuf, size_t size,
 {
     LOG("path='%s'\n", path);
 
+    assert(path);
+
+    cap_fs_capref_t cap;
+    size_t fsize;
+    cap_fs_filetype_t ft;
+
+    if (fi && fi->fh) {
+        struct capfs_handle *h = (struct capfs_handle *)fi->fh;
+        cap = h->cap;
+        fsize = h->size;
+        ft = h->type;
+    } else {
+        if (capfs_backend_resolve_path(CAPFS_ROOTCAP, path, &cap)) {
+            return -ENOENT;
+        }
+        capfs_backend_get_capsize(cap, &fsize);
+        ft = capfs_backend_get_filetype_cap(cap);
+    }
+
     /* check whether the path is in fact a file */
-    if (cap_fs_debug_get_file_type(path) != CAP_FS_FILETYPE_FILE) {
+    if (ft != CAP_FS_FILETYPE_FILE) {
         return -EACCES;
     }
 
-    cap_fs_capref_t cap;
-    /* obtain the cap handle form the filehandle */
-    if (fi && fi->fh) {
-        struct cap_fs_handle * fh = (struct cap_fs_handle *)fi->fh;
-        cap = fh->cap;
-    } else {
-        cap = cap_fs_debug_get_caphandle(path);
+    if ((size_t)offset > fsize) {
+        return -EINVAL;
     }
-
 
     LOG("invoke store to cap (%lx, %lu, %p, %lu)\n", cap.capaddr, offset, 
         wbuf, size);
 
-    if (size < INT_MAX) {
-        return (int)size;
-    } else {
-        return INT_MAX;
-    }
+    return capfs_backend_write(cap, offset, wbuf, size);
 }

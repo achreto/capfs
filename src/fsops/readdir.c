@@ -24,30 +24,11 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#define _GNU_SOURCE /* don't declare *pt* functions  */
+#include <capfs_internal.h>
 
-#define FUSE_USE_VERSION 31
-
-#include "config.h"
-
-#include <fuse.h>
-#include <fuse_opt.h>
-#include <fuse_lowlevel.h>
 
 #include <assert.h>
-#include <stdio.h>
-#include <stddef.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <string.h>
-#include <stdint.h>
 #include <errno.h>
-#include <limits.h>
-#include <pthread.h>
-
-#include <capfs_internal.h>
-#include "../include/capfs_fsops.h"
 
 
 /**
@@ -72,22 +53,43 @@ int capfs_op_readdir(const char * path, void * dbuf, fuse_fill_dir_t filler,
                      off_t offset, struct fuse_file_info * fi,
                      enum fuse_readdir_flags flags)
 {
+    assert(path);
+    assert(dbuf);
+    assert(filler);
+
+    (void)flags;
+
     LOG("path='%s'\n", path);
 
-    const char **dirs = cap_fs_debug_get_dirents(path);
-    if (!dirs) {
-        return -ENOENT;
+
+    cap_fs_capref_t cap;
+    cap_fs_filetype_t ft;
+    if (fi && fi->fh) {
+        cap = ((struct capfs_handle *)fi->fh)->cap;
+        ft = ((struct capfs_handle *)fi->fh)->type;
+    } else {
+
+        if (capfs_backend_resolve_path(CAPFS_ROOTCAP, path, &cap)) {
+            return -ENOENT;
+        }
+
+        ft = capfs_backend_get_filetype_cap(cap);
+    }
+    switch(ft) {
+        case CAP_FS_FILETYPE_DIRECTORY :
+        case CAP_FS_FILETYPE_ROOT :
+            /* no-op */
+            break;
+        default:
+            return -ENOENT;
     }
 
-    size_t i = 0;
-    while(dirs[i]) {
-        filler(dbuf, dirs[i], NULL, 0, 0  );
-        i++;
+    const char *dirent = NULL;
+    while((dirent = capfs_backend_get_direntry(cap, offset)) != NULL) {
+        filler(dbuf, dirent, NULL, 0, 0);
+        offset++;
     }
 
-    (void)fi;
-    (void)offset;
-    (void)flags;
 
     return 0;
 }

@@ -27,15 +27,43 @@
 #ifndef CAP_FS_BACKEND_H
 #define CAP_FS_BACKEND_H 1
 
-#include <capfs.h>
+#include <capfs_internal.h>
 
-/*
- * DEBUG Functions for testing
- */
 
-const char **cap_fs_debug_get_dirents(const char *path);
-cap_fs_filetype_t cap_fs_debug_get_file_type(const char *path);
-cap_fs_capref_t cap_fs_debug_get_caphandle(const char *path);
-size_t cap_fs_debug_get_filesize(const char *path);
+void *capfs_backend_init(struct fuse_conn_info * conn,
+                         struct fuse_config * cfg);
+int capfs_backend_destroy(void *st);
+
+cap_fs_capref_t capfs_backend_get_rootcap(void);
+
+#define CAPFS_ROOTCAP capfs_backend_get_rootcap()
+
+#define CAPFS_NULLCAP 0
+
+int capfs_backend_resolve_path(cap_fs_capref_t root,
+                               const char *path,
+                               cap_fs_capref_t *retcap);
+
+const char *capfs_backend_get_direntry(cap_fs_capref_t cap,
+                                       off_t offset);
+
+int capfs_backend_get_caphandle(const char *path, cap_fs_capref_t *retcap);
+
+cap_fs_filetype_t capfs_backend_get_filetype_cap(cap_fs_capref_t cap);
+
+int capfs_backend_get_capsize(cap_fs_capref_t cap, size_t *retsize);
+
+int capfs_backend_get_perms(cap_fs_capref_t cap);
+
+int capfs_backend_get_cap(cap_fs_capref_t cap,
+                          off_t offset, cap_fs_capref_t *retcap);
+int capfs_backend_put_cap(cap_fs_capref_t cap,
+                          off_t offset, cap_fs_capref_t newcap);
+
+int capfs_backend_read(cap_fs_capref_t cap, off_t offset,
+                                char *rbuf, size_t bytes);
+int capfs_backend_write(cap_fs_capref_t cap, off_t offset,
+                               const char *wbuf, size_t bytes);
+
 
 #endif //CAP_FS_BACKEND_H_H

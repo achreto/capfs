@@ -28,6 +28,10 @@
 #define CAP_FS_DEBUG_H 1
 
 #include <stdio.h>
+#include <inttypes.h>
+
+#define PRIxCAP "%" PRIx64
+#define PRI_CAP(x) 0UL
 
 /* debugging utility */
 #define LOG(format, args...)                        \

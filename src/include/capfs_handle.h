@@ -36,23 +36,24 @@
  *
  * this structure is allcated and populated on open/opendir/create
  */
-struct cap_fs_handle {
+struct capfs_handle {
     cap_fs_filetype_t type;
     size_t            size;
     cap_fs_capref_t   cap;
+    int               perms;
 };
 
 /**
  * @brief allocates a new cap_fs_handle struct
  */
-static inline struct cap_fs_handle *cap_fs_handle_alloc() {
-    return calloc(1, sizeof(struct cap_fs_handle));
+static inline struct capfs_handle *cap_fs_handle_alloc() {
+    return calloc(1, sizeof(struct capfs_handle));
 }
 
 /**
  * @brief frees a allocated cap_fs_handle struct
  */
-static inline void  cap_fs_handle_free(struct cap_fs_handle *h) {
+static inline void  cap_fs_handle_free(struct capfs_handle *h) {
     if (h) {
         free(h);
     }

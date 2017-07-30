@@ -24,30 +24,10 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#define _GNU_SOURCE /* don't declare *pt* functions  */
-
-#define FUSE_USE_VERSION 31
-
-#include "config.h"
-
-#include <fuse.h>
-#include <fuse_opt.h>
-#include <fuse_lowlevel.h>
+#include <capfs_internal.h>
 
 #include <assert.h>
-#include <stdio.h>
-#include <stddef.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <string.h>
-#include <stdint.h>
 #include <errno.h>
-#include <limits.h>
-#include <pthread.h>
-
-#include <capfs_internal.h>
-#include "../include/capfs_fsops.h"
 
 
 /**
@@ -66,10 +46,10 @@
  */
 int capfs_op_releasedir(const char * path, struct fuse_file_info * fi)
 {
-    LOG("path='%s', fh=%p\n", path, (fi ? (struct cap_fs_handle *)(fi->fh) : NULL));
+    LOG("path='%s', fh=%p\n", path, (fi ? (struct capfs_handle *)(fi->fh) : NULL));
 
     if (fi && fi->fh) {
-        cap_fs_handle_free((struct cap_fs_handle *)(fi->fh));
+        cap_fs_handle_free((struct capfs_handle *)(fi->fh));
     }
 
     return 0;

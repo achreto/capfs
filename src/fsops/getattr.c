@@ -24,31 +24,11 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#define _GNU_SOURCE /* don't declare *pt* functions  */
-
-#define FUSE_USE_VERSION 31
-
-#include "config.h"
-
-#include <fuse.h>
-#include <fuse_opt.h>
-#include <fuse_lowlevel.h>
-
-#include <assert.h>
-#include <stdio.h>
-#include <stddef.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <string.h>
-#include <stdint.h>
-#include <errno.h>
-#include <limits.h>
-#include <pthread.h>
 
 #include <capfs_internal.h>
-#include "../include/capfs_fsops.h"
 
+#include <assert.h>
+#include <errno.h>
 
 
 /**
@@ -67,32 +47,43 @@
 int capfs_op_getattr(const char * path, struct stat * stbuf,
                      struct fuse_file_info * fi)
 {
-    LOG("path='%s', fh=%p\n", path, (fi ? (struct cap_fs_handle *)fi->fh : NULL));
+    assert(path);
+    assert(stbuf);
+
+    LOG("path='%s', fh=%p\n", path, (fi ? (struct capfs_handle *)fi->fh : NULL));
 
     cap_fs_filetype_t t = CAP_FS_FILETYPE_NONE;
     size_t sz = 0;
+    int perms = 0;
     if (fi && fi->fh) {
-        struct cap_fs_handle *h = (struct cap_fs_handle *)fi->fh;
+        struct capfs_handle *h = (struct capfs_handle *)fi->fh;
         t = h->type;
         sz = h->size;
+        perms = h->perms;
     } else {
-        LOG("%s\n", "cap_fs_debug_get_file_type\n");
-        t = cap_fs_debug_get_file_type(path);
+        cap_fs_capref_t cap;
+        if (capfs_backend_resolve_path(CAPFS_ROOTCAP, path, &cap)) {
+            return -ENOENT;
+        }
 
-        LOG("%s\n", "cap_fs_debug_get_filesize\n");
-        sz = cap_fs_debug_get_filesize(path);
+        t = capfs_backend_get_filetype_cap(cap);
+        perms = capfs_backend_get_perms(cap);
+        if (capfs_backend_get_capsize(cap, &sz)) {
+            return -ENOENT;
+        }
+
     }
 
     switch (t) {
         case CAP_FS_FILETYPE_ROOT:
-            stbuf->st_mode = S_IFDIR | 0755;
+            stbuf->st_mode = S_IFDIR | perms;
             stbuf->st_nlink = 2;
             break;
         case CAP_FS_FILETYPE_DIRECTORY:
-            stbuf->st_mode = S_IFDIR | 0755;
+            stbuf->st_mode = S_IFDIR | perms;
             break;
         case CAP_FS_FILETYPE_FILE:
-            stbuf->st_mode = S_IFREG | 0444;
+            stbuf->st_mode = S_IFREG | perms;
             stbuf->st_size = sz;
             stbuf->st_nlink = 1;
             break;

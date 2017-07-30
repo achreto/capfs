@@ -27,6 +27,8 @@
 #ifndef CAP_FS_INTERNAL_H
 #define CAP_FS_INTERNAL_H 1
 
+#define _GNU_SOURCE /* don't declare *pt* functions  */
+
 
 /* capfs generated configuration file config */
 #include "config.h"
@@ -47,7 +49,6 @@
 
 
 #include <stdbool.h>
-
 
 /**
  * @brief this struct stores the options for the cap-fs

@@ -24,31 +24,10 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#define _GNU_SOURCE /* don't declare *pt* functions  */
-
-#define FUSE_USE_VERSION 31
-
-#include "config.h"
-
-#include <fuse.h>
-#include <fuse_opt.h>
-#include <fuse_lowlevel.h>
+#include <capfs_internal.h>
 
 #include <assert.h>
-#include <stdio.h>
-#include <stddef.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <string.h>
-#include <stdint.h>
 #include <errno.h>
-#include <limits.h>
-#include <pthread.h>
-
-#include <capfs_internal.h>
-#include "../include/capfs_fsops.h"
-
 
 /**
  * @brief Release is called when FUSE is completely done with a file. 

@@ -24,31 +24,9 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#define _GNU_SOURCE /* don't declare *pt* functions  */
-
-#define FUSE_USE_VERSION 31
-
-#include "config.h"
-
-#include <fuse.h>
-#include <fuse_opt.h>
-#include <fuse_lowlevel.h>
-
-#include <assert.h>
-#include <stdio.h>
-#include <stddef.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <string.h>
-#include <stdint.h>
-#include <errno.h>
-#include <limits.h>
-#include <pthread.h>
-
 #include <capfs_internal.h>
-#include "../include/capfs_fsops.h"
 
+#include <errno.h>
 
 /**
  * @brief This is the same as the access(2) system call.
@@ -64,13 +42,17 @@
  */
 int capfs_op_access(const char * path, int mask)
 {
-    LOG("path='%s, mastk=0x%x'\n", path, mask);
+    LOG("path='%s, mask=0x%x'\n", path, mask);
 
+    cap_fs_capref_t cap;
+    if (!capfs_backend_resolve_path(CAPFS_ROOTCAP, path, &cap)) {
+        return -ENOENT;
+    }
 
-    switch(cap_fs_debug_get_file_type(path)) {
+    switch(capfs_backend_get_filetype_cap(cap)) {
         case CAP_FS_FILETYPE_NONE :
             return -ENOENT;
         default:
-            return 0;
+            return (mask & capfs_backend_get_perms(cap));
     }
 }

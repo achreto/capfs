@@ -24,30 +24,10 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#define _GNU_SOURCE /* don't declare *pt* functions  */
-
-#define FUSE_USE_VERSION 31
-
-#include "config.h"
-
-#include <fuse.h>
-#include <fuse_opt.h>
-#include <fuse_lowlevel.h>
+#include <capfs_internal.h>
 
 #include <assert.h>
-#include <stdio.h>
-#include <stddef.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <string.h>
-#include <stdint.h>
 #include <errno.h>
-#include <limits.h>
-#include <pthread.h>
-
-#include <capfs_internal.h>
-#include "../include/capfs_fsops.h"
 
 
 /**
@@ -68,19 +48,28 @@ int capfs_op_read(const char * path, char * rbuf, size_t size, off_t offset,
 {
     LOG("path='%s'\n", path);
 
-    if (cap_fs_debug_get_file_type(path) != CAP_FS_FILETYPE_FILE) {
-        return -EACCES;
-    }
+    assert(path);
+
 
     cap_fs_capref_t cap;
     size_t fsize;
+    cap_fs_filetype_t ft;
+
     if (fi && fi->fh) {
-        struct cap_fs_handle * fh = (struct cap_fs_handle *)fi->fh;
-        cap = fh->cap;
-        fsize = fh->size;
+        struct capfs_handle *h = (struct capfs_handle *)fi->fh;
+        cap = h->cap;
+        fsize = h->size;
+        ft = h->type;
     } else {
-        cap = cap_fs_debug_get_caphandle(path);
-        fsize = cap_fs_debug_get_filesize(path);
+        if (capfs_backend_resolve_path(CAPFS_ROOTCAP, path, &cap)) {
+            return -ENOENT;
+        }
+        capfs_backend_get_capsize(cap, &fsize);
+        ft = capfs_backend_get_filetype_cap(cap);
+    }
+
+    if (ft != CAP_FS_FILETYPE_FILE) {
+        return -EACCES;
     }
 
     if (fsize < (size_t)offset) {
@@ -88,14 +77,5 @@ int capfs_op_read(const char * path, char * rbuf, size_t size, off_t offset,
     }
 
 
-    LOG("invoke load from cap (%lx, %lu, %p, %lu)\n", cap.capaddr, 
-        offset, rbuf, size);
-    
-    int i = 0;
-    for (i = 0; i < (int)size && i < 12; i++) {
-        rbuf[i] = 'a';
-    }
-    rbuf[i] = 0;
-
-    return i;
+    return capfs_backend_read(cap, offset, rbuf, size);
 }

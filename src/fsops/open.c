@@ -24,30 +24,10 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#define _GNU_SOURCE /* don't declare *pt* functions  */
-
-#define FUSE_USE_VERSION 31
-
-#include "config.h"
-
-#include <fuse.h>
-#include <fuse_opt.h>
-#include <fuse_lowlevel.h>
+#include <capfs_internal.h>
 
 #include <assert.h>
-#include <stdio.h>
-#include <stddef.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <string.h>
-#include <stdint.h>
 #include <errno.h>
-#include <limits.h>
-#include <pthread.h>
-
-#include <capfs_internal.h>
-#include "../include/capfs_fsops.h"
 
 
 /**
@@ -67,19 +47,31 @@ int capfs_op_open(const char * path, struct fuse_file_info * fi)
 {
     LOG("path='%s'\n", path);
 
-    cap_fs_filetype_t ft = cap_fs_debug_get_file_type(path);
-    if (ft != CAP_FS_FILETYPE_FILE) {
+    assert(path);
+
+    cap_fs_capref_t cap;
+    if (!capfs_backend_resolve_path(CAPFS_ROOTCAP, path, &cap)) {
         return -EINVAL;
     }
 
-    struct cap_fs_handle *h = cap_fs_handle_alloc();
+    cap_fs_filetype_t ft = capfs_backend_get_filetype_cap(cap);
+    switch(ft) {
+        case CAP_FS_FILETYPE_ROOT:
+        case CAP_FS_FILETYPE_DIRECTORY:
+            break;
+        default:
+            return -EINVAL;
+    }
+
+    struct capfs_handle *h = cap_fs_handle_alloc();
     if (!h) {
         return -ENOMEM;
     }
 
-    h->cap = cap_fs_debug_get_caphandle(path);
+    h->cap = cap;
     h->type = ft;
-    h->size = cap_fs_debug_get_file_type(path);
+    capfs_backend_get_capsize(cap, &h->size);
+    h->perms = capfs_backend_get_perms(cap);
 
     fi->fh = (uint64_t)h;
 

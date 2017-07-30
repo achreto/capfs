@@ -24,30 +24,10 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#define _GNU_SOURCE /* don't declare *pt* functions  */
-
-#define FUSE_USE_VERSION 31
-
-#include "config.h"
-
-#include <fuse.h>
-#include <fuse_opt.h>
-#include <fuse_lowlevel.h>
+#include <capfs_internal.h>
 
 #include <assert.h>
-#include <stdio.h>
-#include <stddef.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <string.h>
-#include <stdint.h>
 #include <errno.h>
-#include <limits.h>
-#include <pthread.h>
-
-#include <capfs_internal.h>
-#include "../include/capfs_fsops.h"
 
 
 /**
@@ -74,13 +54,29 @@ int capfs_op_ioctl(const char *path, int cmd, void *arg,
 {
     LOG("path='%s', cmd=%i\n", path, cmd);
 
+    assert(path);
+
     (void) arg;
     (void) fi;
 
     if (flags & FUSE_IOCTL_COMPAT)
         return -ENOSYS;
 
-    switch(cap_fs_debug_get_file_type(path)) {
+
+    cap_fs_filetype_t ft;
+    cap_fs_capref_t cap;
+    if (fi && fi->fh) {
+        cap = ((struct capfs_handle *)fi->fh)->cap;
+        ft = ((struct capfs_handle *)fi->fh)->type;
+    } else {
+        if (!capfs_backend_resolve_path(CAPFS_ROOTCAP, path, &cap)) {
+            return -ENOENT;
+        }
+        ft = capfs_backend_get_filetype_cap(cap);
+    }
+
+
+    switch(ft) {
         case CAP_FS_FILETYPE_NONE:
             return -EINVAL;
         case CAP_FS_FILETYPE_ROOT:
@@ -101,7 +97,9 @@ int capfs_op_ioctl(const char *path, int cmd, void *arg,
 
     switch (cmd) {
         case CAP_FS_IOCTL_OP_GET_CAP:
-            *(cap_fs_capref_t *)data = cap_fs_debug_get_caphandle(path);
+            if (data) {
+                *(cap_fs_capref_t *) data = cap;
+            }
             return 0;
         case CAP_FS_IOCTL_OP_SET_CAP:
             return -EINVAL;
