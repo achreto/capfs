@@ -31,7 +31,7 @@
 #include <inttypes.h>
 
 #define PRIxCAP "%" PRIx64
-#define PRI_CAP(x) 0UL
+#define PRI_CAP(x) ((x).capaddr)
 
 /* debugging utility */
 #define LOG(format, args...)                        \
