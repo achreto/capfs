@@ -52,7 +52,7 @@ int capfs_op_getattr(const char * path, struct stat * stbuf,
 
     LOG("path='%s', fh=%p\n", path, (fi ? (struct capfs_handle *)fi->fh : NULL));
 
-    cap_fs_filetype_t t = CAP_FS_FILETYPE_NONE;
+    capfs_filetype_t t = CAP_FS_FILETYPE_NONE;
     size_t sz = 0;
     int perms = 0;
     if (fi && fi->fh) {
@@ -61,7 +61,7 @@ int capfs_op_getattr(const char * path, struct stat * stbuf,
         sz = h->size;
         perms = h->perms;
     } else {
-        cap_fs_capref_t cap;
+        capfs_capref_t cap;
         if (capfs_backend_resolve_path(CAPFS_ROOTCAP, path, &cap)) {
             return -ENOENT;
         }

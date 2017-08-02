@@ -51,9 +51,9 @@ int capfs_op_read(const char * path, char * rbuf, size_t size, off_t offset,
     assert(path);
 
 
-    cap_fs_capref_t cap;
+    capfs_capref_t cap;
     size_t fsize;
-    cap_fs_filetype_t ft;
+    capfs_filetype_t ft;
 
     if (fi && fi->fh) {
         struct capfs_handle *h = (struct capfs_handle *)fi->fh;

@@ -63,8 +63,8 @@ int capfs_op_ioctl(const char *path, int cmd, void *arg,
         return -ENOSYS;
 
 
-    cap_fs_filetype_t ft;
-    cap_fs_capref_t cap;
+    capfs_filetype_t ft;
+    capfs_capref_t cap;
     if (fi && fi->fh) {
         cap = ((struct capfs_handle *)fi->fh)->cap;
         ft = ((struct capfs_handle *)fi->fh)->type;
@@ -96,14 +96,14 @@ int capfs_op_ioctl(const char *path, int cmd, void *arg,
     }
 
     switch (cmd) {
-        case CAP_FS_IOCTL_OP_GET_CAP:
+        case CAPFS_IOCTL_OP_GET_CAP:
             if (data) {
-                *(cap_fs_capref_t *) data = cap;
+                *(capfs_capref_t *) data = cap;
             }
             return 0;
-        case CAP_FS_IOCTL_OP_SET_CAP:
+        case CAPFS_IOCTL_OP_SET_CAP:
             return -EINVAL;
-        case CAP_FS_IOCTL_OP_IDENTIFY:
+        case CAPFS_IOCTL_OP_IDENTIFY:
             return -EINVAL;
         default:
             return -EINVAL;

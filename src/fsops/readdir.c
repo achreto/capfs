@@ -62,8 +62,8 @@ int capfs_op_readdir(const char * path, void * dbuf, fuse_fill_dir_t filler,
     LOG("path='%s'\n", path);
 
 
-    cap_fs_capref_t cap;
-    cap_fs_filetype_t ft;
+    capfs_capref_t cap;
+    capfs_filetype_t ft;
     if (fi && fi->fh) {
         cap = ((struct capfs_handle *)fi->fh)->cap;
         ft = ((struct capfs_handle *)fi->fh)->type;

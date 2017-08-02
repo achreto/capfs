@@ -52,7 +52,7 @@ struct capability {
     const char *name;
     int perms;
     const char *payload;
-    cap_fs_filetype_t type;
+    capfs_filetype_t type;
 };
 
 
@@ -149,16 +149,16 @@ int capfs_backend_destroy(void *st)
  * ============================================================================
  */
 
-#define MKCAP(caddr) (cap_fs_capref_t){.capaddr = (caddr)}
+#define MKCAP(caddr) (capfs_capref_t){.capaddr = (caddr)}
 
-static cap_fs_capref_t root_cap = MKCAP(0);
+static capfs_capref_t root_cap = MKCAP(0);
 
-cap_fs_capref_t capfs_backend_get_rootcap(void)
+capfs_capref_t capfs_backend_get_rootcap(void)
 {
     return root_cap;
 }
 
-const char *capfs_backend_get_direntry(cap_fs_capref_t cap,
+const char *capfs_backend_get_direntry(capfs_capref_t cap,
                                        off_t offset)
 {
     LOG("cap=" PRIxCAP "offset=%li\n", PRI_CAP(cap), offset);
@@ -207,9 +207,9 @@ const char *capfs_backend_get_direntry(cap_fs_capref_t cap,
 }
 
 
-int capfs_backend_resolve_path(cap_fs_capref_t root,
+int capfs_backend_resolve_path(capfs_capref_t root,
                                const char *path,
-                               cap_fs_capref_t *retcap)
+                               capfs_capref_t *retcap)
 {
     LOG("root=" PRIxCAP " path=%s\n", PRI_CAP(root), path);
 
@@ -236,7 +236,7 @@ int capfs_backend_resolve_path(cap_fs_capref_t root,
 }
 
 
-cap_fs_filetype_t capfs_backend_get_filetype_cap(cap_fs_capref_t cap)
+capfs_filetype_t capfs_backend_get_filetype_cap(capfs_capref_t cap)
 {
     LOG("cap=" PRIxCAP "\n", PRI_CAP(cap));
 
@@ -246,7 +246,7 @@ cap_fs_filetype_t capfs_backend_get_filetype_cap(cap_fs_capref_t cap)
     return CAP_FS_FILETYPE_NONE;
 }
 
-int capfs_backend_get_capsize(cap_fs_capref_t cap, size_t *retsize)
+int capfs_backend_get_capsize(capfs_capref_t cap, size_t *retsize)
 {
     LOG("cap=" PRIxCAP "\n", PRI_CAP(cap));
 
@@ -259,7 +259,7 @@ int capfs_backend_get_capsize(cap_fs_capref_t cap, size_t *retsize)
     return -EACCES;
 }
 
-int capfs_backend_get_perms(cap_fs_capref_t cap)
+int capfs_backend_get_perms(capfs_capref_t cap)
 {
     LOG("cap=" PRIxCAP "\n", PRI_CAP(cap));
 
@@ -286,8 +286,8 @@ int capfs_backend_get_perms(cap_fs_capref_t cap)
  *
  * @return
  */
-int capfs_backend_get_cap(cap_fs_capref_t cap,
-                          off_t offset, cap_fs_capref_t *retcap)
+int capfs_backend_get_cap(capfs_capref_t cap,
+                          off_t offset, capfs_capref_t *retcap)
 {
     LOG("cap=" PRIxCAP ", offset=%li\n", PRI_CAP(cap), offset);
 
@@ -305,8 +305,8 @@ int capfs_backend_get_cap(cap_fs_capref_t cap,
  *
  * @return
  */
-int capfs_backend_put_cap(cap_fs_capref_t cap,
-                          off_t offset, cap_fs_capref_t newcap)
+int capfs_backend_put_cap(capfs_capref_t cap,
+                          off_t offset, capfs_capref_t newcap)
 {
     LOG("cap=" PRIxCAP ", offset=%li, newcap=" PRIxCAP "\n", PRI_CAP(cap),
         offset, PRI_CAP(newcap));
@@ -325,7 +325,7 @@ int capfs_backend_put_cap(cap_fs_capref_t cap,
  */
 
 
-int capfs_backend_read(cap_fs_capref_t cap, off_t offset,
+int capfs_backend_read(capfs_capref_t cap, off_t offset,
                        char *rbuf, size_t bytes)
 {
     LOG("cap=" PRIxCAP ", offset=%li, rbuf=%p, size=%zu\n", PRI_CAP(cap), offset,
@@ -366,7 +366,7 @@ int capfs_backend_read(cap_fs_capref_t cap, off_t offset,
     return i;
 }
 
-int capfs_backend_write(cap_fs_capref_t cap, off_t offset,
+int capfs_backend_write(capfs_capref_t cap, off_t offset,
                         const char *wbuf, size_t bytes)
 {
     LOG("cap=" PRIxCAP ", offset=%li, wbuf=%p, size=%zu\n", PRI_CAP(cap), offset,

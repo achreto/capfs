@@ -49,12 +49,12 @@ int capfs_op_open(const char * path, struct fuse_file_info * fi)
 
     assert(path);
 
-    cap_fs_capref_t cap;
+    capfs_capref_t cap;
     if (capfs_backend_resolve_path(CAPFS_ROOTCAP, path, &cap)) {
         return -EINVAL;
     }
 
-    cap_fs_filetype_t ft = capfs_backend_get_filetype_cap(cap);
+    capfs_filetype_t ft = capfs_backend_get_filetype_cap(cap);
     if (ft != CAP_FS_FILETYPE_FILE) {
         LOG("filetype of '%s' is not file\n", path);
         return -EINVAL;

@@ -44,14 +44,14 @@ int capfs_op_opendir(const char * path, struct fuse_file_info * fi)
 
     assert(path);
 
-    cap_fs_capref_t cap;
+    capfs_capref_t cap;
     if (capfs_backend_resolve_path(CAPFS_ROOTCAP, path, &cap)) {
         LOG("path '%s' not found\n", path);
         return -EINVAL;
     }
 
 
-    cap_fs_filetype_t ft = capfs_backend_get_filetype_cap(cap);
+    capfs_filetype_t ft = capfs_backend_get_filetype_cap(cap);
     switch(ft) {
         case CAP_FS_FILETYPE_ROOT:
         case CAP_FS_FILETYPE_DIRECTORY:

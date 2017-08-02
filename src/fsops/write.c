@@ -49,9 +49,9 @@ int capfs_op_write(const char * path, const char * wbuf, size_t size,
 
     assert(path);
 
-    cap_fs_capref_t cap;
+    capfs_capref_t cap;
     size_t fsize;
-    cap_fs_filetype_t ft;
+    capfs_filetype_t ft;
 
     if (fi && fi->fh) {
         struct capfs_handle *h = (struct capfs_handle *)fi->fh;

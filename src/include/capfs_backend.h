@@ -70,7 +70,7 @@ int capfs_backend_destroy(void *st);
  *
  * @return root capability or null cap
  */
-cap_fs_capref_t capfs_backend_get_rootcap(void);
+capfs_capref_t capfs_backend_get_rootcap(void);
 
 #define CAPFS_ROOTCAP capfs_backend_get_rootcap()
 
@@ -89,9 +89,9 @@ cap_fs_capref_t capfs_backend_get_rootcap(void);
  *
  * @return error number TODO: possible error values
  */
-int capfs_backend_resolve_path(cap_fs_capref_t root,
+int capfs_backend_resolve_path(capfs_capref_t root,
                                const char *path,
-                               cap_fs_capref_t *retcap);
+                               capfs_capref_t *retcap);
 
 
 /*
@@ -109,7 +109,7 @@ int capfs_backend_resolve_path(cap_fs_capref_t root,
  *
  * @return string of the entry name or NULL if there is none
  */
-const char *capfs_backend_get_direntry(cap_fs_capref_t cap,
+const char *capfs_backend_get_direntry(capfs_capref_t cap,
                                        off_t offset);
 
 
@@ -127,7 +127,7 @@ const char *capfs_backend_get_direntry(cap_fs_capref_t cap,
  *
  * @return capfs file type
  */
-cap_fs_filetype_t capfs_backend_get_filetype_cap(cap_fs_capref_t cap);
+capfs_filetype_t capfs_backend_get_filetype_cap(capfs_capref_t cap);
 
 /**
  * @brief returns the size of the capability
@@ -137,7 +137,7 @@ cap_fs_filetype_t capfs_backend_get_filetype_cap(cap_fs_capref_t cap);
  *
  * @return error number TODO: possible error values
  */
-int capfs_backend_get_capsize(cap_fs_capref_t cap, size_t *retsize);
+int capfs_backend_get_capsize(capfs_capref_t cap, size_t *retsize);
 
 /**
  * @brief obtains the permissions to access the capability
@@ -146,7 +146,7 @@ int capfs_backend_get_capsize(cap_fs_capref_t cap, size_t *retsize);
  *
  * @return the capability permissions
  */
-int capfs_backend_get_perms(cap_fs_capref_t cap);
+int capfs_backend_get_perms(capfs_capref_t cap);
 
 
 /*
@@ -164,8 +164,8 @@ int capfs_backend_get_perms(cap_fs_capref_t cap);
  *
  * @return error number TODO: possible error values
  */
-int capfs_backend_get_cap(cap_fs_capref_t cap,
-                          off_t offset, cap_fs_capref_t *retcap);
+int capfs_backend_get_cap(capfs_capref_t cap,
+                          off_t offset, capfs_capref_t *retcap);
 
 /**
  * @brief stores a capability inside another capability
@@ -176,8 +176,8 @@ int capfs_backend_get_cap(cap_fs_capref_t cap,
  *
  * @return error number TODO: possible error values
  */
-int capfs_backend_put_cap(cap_fs_capref_t cap,
-                          off_t offset, cap_fs_capref_t newcap);
+int capfs_backend_put_cap(capfs_capref_t cap,
+                          off_t offset, capfs_capref_t newcap);
 
 
 /*
@@ -196,7 +196,7 @@ int capfs_backend_put_cap(cap_fs_capref_t cap,
  *
  * @return read bytes or error number TODO: possible error values
  */
-int capfs_backend_read(cap_fs_capref_t cap, off_t offset,
+int capfs_backend_read(capfs_capref_t cap, off_t offset,
                                 char *rbuf, size_t bytes);
 
 /**
@@ -209,7 +209,7 @@ int capfs_backend_read(cap_fs_capref_t cap, off_t offset,
  *
  * @return written bytes or error number TODO: possible error values
  */
-int capfs_backend_write(cap_fs_capref_t cap, off_t offset,
+int capfs_backend_write(capfs_capref_t cap, off_t offset,
                                const char *wbuf, size_t bytes);
 
 

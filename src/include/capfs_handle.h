@@ -37,9 +37,9 @@
  * this structure is allcated and populated on open/opendir/create
  */
 struct capfs_handle {
-    cap_fs_filetype_t type;
+    capfs_filetype_t type;
     size_t            size;
-    cap_fs_capref_t   cap;
+    capfs_capref_t   cap;
     int               perms;
 };
 

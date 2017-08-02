@@ -24,15 +24,15 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef CAP_FS_H
-#define CAP_FS_H 1
+#ifndef CAPFS_H
+#define CAPFS_H 1
 
 #include <stdbool.h>
 #include <stdint.h>
 
 /*
  * ============================================================================
- * CAP FS Type definitions
+ * CAPFS Type definitions
  * ============================================================================
  */
 
@@ -46,7 +46,7 @@ typedef enum {
     CAP_FS_FILETYPE_FILE,
     CAP_FS_FILETYPE_SYMLINK,
     CAP_FS_FILETYPE_HARDLINK,
-} cap_fs_filetype_t;
+} capfs_filetype_t;
 
 
 /**
@@ -54,28 +54,28 @@ typedef enum {
  */
 typedef struct capref {
     uint64_t capaddr;
-} cap_fs_capref_t;
+} capfs_capref_t;
 
 /*
  * ============================================================================
- * CAP FS IOCTL Functions
+ * CAPFS IOCTL Functions
  * ============================================================================
  */
 
 /**
- * @brief CAP-FS IOCTL operations
+ * @brief CAPFS IOCTL operations
  */
 typedef enum {
-    CAP_FS_IOCTL_OP_GET_CAP =  0,
-    CAP_FS_IOCTL_OP_SET_CAP =  1,
-    CAP_FS_IOCTL_OP_IDENTIFY = 2,
-} cap_fs_ioctl_op_t;
+    CAPFS_IOCTL_OP_GET_CAP =  0,
+    CAPFS_IOCTL_OP_SET_CAP =  1,
+    CAPFS_IOCTL_OP_IDENTIFY = 2,
+} capfs_ioctl_op_t;
 
 
 /**
- * @brief CAP-FS IOCTL arguments
+ * @brief CAPFS IOCTL arguments
  */
-union cap_fs_ioctl_args {
+union capfs_ioctl_args {
     struct {
         const char     *path;
         off_t           offset;
@@ -84,21 +84,21 @@ union cap_fs_ioctl_args {
     struct {
         const char     *path;
         off_t           offset;
-        cap_fs_capref_t cap;
+        capfs_capref_t cap;
     } set_cap;
 
     struct {
-        cap_fs_capref_t cap;
+        capfs_capref_t cap;
     } identify;
 };
 
 /**
  * @brief CAP-FS IOCTL results
  */
-union cap_fs_ioctl_res {
+union capfs_ioctl_res {
     struct {
         int              status;
-        cap_fs_capref_t  cap;
+        capfs_capref_t  cap;
     } get_cap;
 
     struct {
@@ -107,17 +107,17 @@ union cap_fs_ioctl_res {
 
     struct {
         int               status;
-        cap_fs_filetype_t type;
+        capfs_filetype_t type;
     } identify;
 };
 
 
 
-int cap_fs_ioctl(int fd, cap_fs_ioctl_op_t op,
-                 union cap_fs_ioctl_args *args, union cap_fs_ioctl_res *res);
+int capfs_ioctl(int fd, capfs_ioctl_op_t op,
+                union capfs_ioctl_args * args, union capfs_ioctl_res * res);
 
-int cap_fs_ioctl_path(const char *path, cap_fs_ioctl_op_t op,
-                      union cap_fs_ioctl_args *args, union cap_fs_ioctl_res *res);
+int capfs_ioctl_path(const char * path, capfs_ioctl_op_t op,
+                     union capfs_ioctl_args * args, union capfs_ioctl_res * res);
 
 
-#endif //CAP_FS_H_H
+#endif //CAPFS_H    
