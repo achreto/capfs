@@ -50,12 +50,16 @@ int capfs_op_open(const char * path, struct fuse_file_info * fi)
     assert(path);
 
     capfs_capref_t cap;
-    if (capfs_backend_resolve_path(CAPFS_ROOTCAP, path, &cap)) {
+    if (capfs_filesystem_resolve_path(CAPFS_ROOTCAP, path, &cap)) {
         return -EINVAL;
     }
 
-    capfs_filetype_t ft = capfs_backend_get_filetype_cap(cap);
-    if (ft != CAP_FS_FILETYPE_FILE) {
+    struct capfs_filesystem_meta_data md;
+    if (capfs_filesystem_get_metadata(cap, &md)) {
+        return -ENOENT;
+    }
+
+    if (md.type != CAP_FS_FILETYPE_FILE) {
         LOG("filetype of '%s' is not file\n", path);
         return -EINVAL;
     }
@@ -66,9 +70,9 @@ int capfs_op_open(const char * path, struct fuse_file_info * fi)
     }
 
     h->cap = cap;
-    h->type = ft;
-    capfs_backend_get_capsize(cap, &h->size);
-    h->perms = capfs_backend_get_perms(cap);
+    h->type = md.type;
+    h->size = md.bytes;
+    h->perms = md.perms;
 
     fi->fh = (uint64_t)h;
 

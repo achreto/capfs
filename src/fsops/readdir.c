@@ -69,11 +69,16 @@ int capfs_op_readdir(const char * path, void * dbuf, fuse_fill_dir_t filler,
         ft = ((struct capfs_handle *)fi->fh)->type;
     } else {
 
-        if (capfs_backend_resolve_path(CAPFS_ROOTCAP, path, &cap)) {
+        if (capfs_filesystem_resolve_path(CAPFS_ROOTCAP, path, &cap)) {
             return -ENOENT;
         }
 
-        ft = capfs_backend_get_filetype_cap(cap);
+        struct capfs_filesystem_meta_data md;
+        if (capfs_filesystem_get_metadata(cap, &md)) {
+            return -ENOENT;
+        }
+
+        ft = md.type;
     }
     switch(ft) {
         case CAP_FS_FILETYPE_DIRECTORY :
@@ -84,10 +89,11 @@ int capfs_op_readdir(const char * path, void * dbuf, fuse_fill_dir_t filler,
             return -ENOENT;
     }
 
-    const char *dirent = NULL;
-    while((dirent = capfs_backend_get_direntry(cap, offset)) != NULL) {
+    char *dirent = NULL;
+    while((dirent = capfs_filesystem_get_direntry(cap, offset)) != NULL) {
         LOG("path=%s\n", dirent);
         filler(dbuf, dirent, NULL, 0, 0);
+        free(dirent);
         offset++;
     }
 

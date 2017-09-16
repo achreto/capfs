@@ -46,11 +46,19 @@
 void *capfs_op_init(struct fuse_conn_info * conn,
                     struct fuse_config * cfg)
 {
-    LOG("conn=%p\n", conn);
+    int err;
+
+    LOG("conn=%p, cfg=%p\n", conn, cfg);
     (void) conn;
 
     /* TODO: set the options accordningly */
     cfg->kernel_cache = 1;
 
-    return capfs_backend_init(conn, cfg);
+    void *backend_state = capfs_backend_init(conn, cfg);
+
+    if ((err = capfs_filesystem_init(capfs_root_capability))) {
+        PANIC(err, "%s", "Filesystem initialization failed");
+    }
+
+    return backend_state;
 }

@@ -61,11 +61,15 @@ int capfs_op_read(const char * path, char * rbuf, size_t size, off_t offset,
         fsize = h->size;
         ft = h->type;
     } else {
-        if (capfs_backend_resolve_path(CAPFS_ROOTCAP, path, &cap)) {
+        if (capfs_filesystem_resolve_path(CAPFS_ROOTCAP, path, &cap)) {
             return -ENOENT;
         }
-        capfs_backend_get_capsize(cap, &fsize);
-        ft = capfs_backend_get_filetype_cap(cap);
+        struct capfs_filesystem_meta_data md;
+        if (capfs_filesystem_get_metadata(cap, &md)) {
+            return -ENOENT;
+        }
+        fsize = md.bytes;
+        ft = md.type;
     }
 
     if (ft != CAP_FS_FILETYPE_FILE) {

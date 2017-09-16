@@ -50,16 +50,57 @@
  */
 capfs_capref_t capfs_root_capability;
 
-#define BACKEND_FILES_PATH "foobar.bin"
+
+#define CAPABILITY_ROOT_CAP = \
+    (struct capability){0, BACKEND_FILES_SIZE, BACKEND_FILES_SIZE_BITS, \
+                           CAPFS_CAPABILITY_PERM_ALL}
+
+
+/**
+ * @brief the file name used to store the data TODO: make as an argument
+ */
+#define BACKEND_FILES_PATH "/tmp/foobar.bin"
+
+/**
+ * @brief the file size in bits
+ */
 #define BACKEND_FILES_SIZE_BITS (24)
+
+/**
+ * @brief the file size in bytes
+ */
 #define BACKEND_FILES_SIZE (1UL << BACKEND_FILES_SIZE_BITS)
+
+/**
+ * @brief the number of pointers in the file
+ */
+#define BACKEND_FILES_NUM_POINTERS (BACKEND_FILES_SIZE / sizeof(uintptr_t))
+
+/**
+ * @brief the size of the meta data area / offset where the data region starts
+ */
+#define BACKEND_FILES_DATA_OFFSET (BACKEND_FILES_NUM_POINTERS / 8)
+
+/**
+ * @brief the total size of the file in bytes
+ */
+#define BACKEND_FILES_TOTAL_SIZE (BACKEND_FILES_SIZE + BACKEND_FILES_DATA_OFFSET)
+
 
 struct backend_state
 {
     FILE *file;
-    size_t num_cells;
+    size_t data_size;
 };
 
+static struct backend_state g_st;
+
+
+/*
+ * ============================================================================
+ * Capability
+ * ============================================================================
+ */
 
 
 struct capability {
@@ -70,20 +111,234 @@ struct capability {
 };
 
 
-#define CAPABILITY_ROOT_CAP = \
-    (struct capability){0, BACKEND_FILES_SIZE, BACKEND_FILES_SIZE_BITS,\
-                           CAPFS_CAPABILITY_PERM_READ | CAPFS_CAPABILITY_PERM_WRITE}
+#define dump_capability(c) do { \
+    LOG("{%lx, %lx %u, %u}\n", (c)->base, (c)->size, (c)->size_bits, (c)->perms); \
+        } while(0);
+
+static void capability_decompress(uint64_t comp, struct capability *cap)
+{
+    cap->base = (comp & 0xffffffffffff);
+    cap->size_bits = (uint8_t)((comp >> 48) & 0xff);
+    cap->size  = (1UL << cap->size_bits);
+    cap->perms = (uint8_t)(comp >> 56);
+}
+
+static uint64_t capability_compres(struct capability *cap)
+{
+    return ((uint64_t)cap->size_bits << 48) | (cap->base & 0xffffffffffff) |
+           ((uint64_t)cap->perms << 56);
+}
 
 
 
+/*
+ * ===========================================================================
+ * Capability to Capref Conversion
+ * ===========================================================================
+ *
+ * XXX: We implement a dummy capability to capref conversion here. This is
+ *      not considered to be save
+ */
 
-static struct backend_state g_st;
+
+#define CAPFS_CAPREF_SALT (0xAAAAAAAAAAAAAAAAUL)
+
+int capref_to_capability(capfs_capref_t cap, struct capability *ret_cap)
+{
+    capability_decompress(cap.capaddr ^ CAPFS_CAPREF_SALT, ret_cap);
+
+    return 0;
+}
+
+int capability_to_capref(struct capability *cap, capfs_capref_t *ret_cap)
+{
+    ret_cap->capaddr = capability_compres(cap) ^ CAPFS_CAPREF_SALT;
+
+    return 0;
+}
+
 
 /*
  * ============================================================================
- * RAW load / store
+ * Meta data
  * ============================================================================
  */
+
+#define PTR2OFFSET(ptr) (((ptr) / (sizeof(uint32_t) * 8)) * sizeof(uint32_t))
+
+static int metadata_rawread(uint64_t ptr, uint32_t *md)
+{
+    assert(PTR2OFFSET(ptr) < BACKEND_FILES_DATA_OFFSET);
+
+    if (g_st.file == NULL) {
+        return -1;
+    }
+
+    if (fseek(g_st.file, PTR2OFFSET(ptr), SEEK_SET)) {
+        return -1;
+    }
+
+    if (fread(&md, sizeof(md), 1, g_st.file) != 1) {
+        return -1;
+    }
+
+    return 0;
+}
+
+static int metadata_rawwrite(uint64_t ptr, uint32_t md)
+{
+    assert(PTR2OFFSET(ptr) < BACKEND_FILES_DATA_OFFSET);
+
+    if (g_st.file == NULL) {
+        return -1;
+    }
+
+    if (fseek(g_st.file, PTR2OFFSET(ptr), SEEK_SET)) {
+        return -1;
+    }
+
+    if (fwrite(&md, sizeof(md), 1, g_st.file) != 1) {
+        return -1;
+    }
+
+    return 0;
+}
+
+static int metadata_is_capability(uint64_t offset)
+{
+    uint64_t ptr = offset / sizeof(uintptr_t);
+
+    /* must be pointer aligned */
+    if (offset & 0x3) {
+        return 0;
+    }
+
+
+    uint32_t md = 0;
+    metadata_rawread(ptr, &md);
+
+    return (md & (1 << ptr % 32));
+}
+
+static int metadata_valid_bits_generic(uint64_t from, uint64_t to, bool set)
+{
+    assert(from <= to);
+
+    if (g_st.file == NULL) {
+        return -1;
+    }
+
+    uint64_t ptr_from = from / sizeof(uintptr_t);
+    uint64_t ptr_to = (to + sizeof(uintptr_t) - 1) / sizeof(uintptr_t);
+
+
+    uint32_t md;
+
+    uint64_t bit = ptr_from % 32;
+    if (bit) {
+        metadata_rawread(ptr_from, &md);
+
+        while((ptr_from <= ptr_to) && (bit < 32)) {
+            md = (set ? md | (1<< bit) : md & ~(1<< bit));
+            bit++;
+            ptr_from++;
+        }
+
+        metadata_rawwrite(ptr_from, md);
+    }
+
+    assert((ptr_from % 32) == 0);
+
+    md = (set ? 0xffffffff : 0);
+
+    while(ptr_from + 32 <= ptr_to) {
+        metadata_rawwrite(ptr_from, md);
+        ptr_from += 32;
+    }
+
+    if (ptr_from < ptr_to) {
+
+        metadata_rawread(ptr_from, &md);
+        bit = 0;
+        while((ptr_from <= ptr_to)) {
+            assert(bit < 32);
+            md = (set ? md | (1<< bit) : md & ~(1<< bit));
+            bit++;
+            ptr_from++;
+        }
+
+        metadata_rawwrite(ptr_from, md);
+    }
+
+    return 0;
+}
+
+
+static int metadata_clear_valid_bits(uint64_t from, uint64_t to)
+{
+    return metadata_valid_bits_generic(from, to, false);
+}
+
+static int metadata_set_valid_bits(uint64_t from, uint64_t to)
+{
+    return metadata_valid_bits_generic(from, to, true);
+}
+
+
+
+static inline uint64_t capstore_addr2offset(uintptr_t addr)
+{
+    return addr + BACKEND_FILES_DATA_OFFSET;
+}
+
+
+static int capstore_rawread(uint64_t offset, void *rbuf, size_t bytes)
+{
+    if (g_st.file == NULL) {
+        LOGA("no file set\n");
+        return -1;
+    }
+
+    if (offset + bytes >= g_st.data_size) {
+        LOGA("outside of data range\n");
+        return -1;
+    }
+
+    if (fseek(g_st.file, capstore_addr2offset(offset), SEEK_SET)) {
+        LOGA("seek failed\n");
+        return -1;
+    }
+
+    if (fread(rbuf, 1, bytes, g_st.file) != 1) {
+        return ferror(g_st.file);
+    }
+
+    return 0;
+}
+
+static int capstore_rawwrite(uint64_t offset, const void *wbuf, size_t bytes)
+{
+    if (g_st.file == NULL) {
+        return -1;
+    }
+
+    if (offset + bytes >= g_st.data_size) {
+        return -1;
+    }
+
+    if (fseek(g_st.file, capstore_addr2offset(offset), SEEK_SET)) {
+        return -1;
+    }
+
+    if (fwrite(wbuf, 1, bytes, g_st.file) != 1) {
+        return ferror(g_st.file);
+    }
+
+    return 0;
+}
+
+
+
 
 
 
@@ -107,18 +362,48 @@ static struct backend_state g_st;
 void *capfs_backend_init(struct fuse_conn_info * conn,
                          struct fuse_config * cfg)
 {
+    int err;
+
+    LOG("Initializing backend conn=%p, cfg=%p\n", conn, cfg);
+
     (void)conn;
     (void)cfg;
 
-    g_st.file = fopen ( BACKEND_FILES_PATH , "ab" );
+
+    LOG("Attempt to open file '%s'\n", BACKEND_FILES_PATH);
+    g_st.file = fopen ( BACKEND_FILES_PATH , "r+b" );
     if (g_st.file == NULL) {
-        /* TODO ERROR */
-        exit(1);
+        LOGA("The file does not exist.. creating...\n");
+        g_st.file = fopen ( BACKEND_FILES_PATH , "w+b");
+        if (g_st.file == NULL) {
+            PANIC(errno, "%s\n", "ERROR while opening file");
+        }
+
+        LOG("Truncate file to %" PRIu64" bytes\n", BACKEND_FILES_TOTAL_SIZE);
+        if((err = truncate(BACKEND_FILES_PATH, BACKEND_FILES_TOTAL_SIZE))) {
+            PANIC(err, "%s\n", "ERROR while truncating file");
+        }
     }
 
-    if(truncate(BACKEND_FILES_PATH, BACKEND_FILES_SIZE)) {
-        exit(1);
-    }
+    fseek(g_st.file, 0L, SEEK_END);
+    if(ftell(g_st.file) != BACKEND_FILES_TOTAL_SIZE) {
+        PANIC(EINVAL, "bad file size: %" PRIu64 " expected %" PRIu64 "\n",
+              ftell(g_st.file), BACKEND_FILES_TOTAL_SIZE);
+    };
+    rewind(g_st.file);
+
+
+    g_st.data_size = BACKEND_FILES_SIZE;
+
+    /* create the root capability */
+
+    struct capability rootcap = {0, BACKEND_FILES_SIZE, BACKEND_FILES_SIZE_BITS,
+                                 CAPFS_CAPABILITY_PERM_READ |
+                                 CAPFS_CAPABILITY_PERM_WRITE |
+                                 CAPFS_CAPABILITY_PERM_EXEC};
+
+    LOGA("setting root capability\n");
+    capability_to_capref(&rootcap, &capfs_root_capability);
 
 
     return NULL;
@@ -143,329 +428,7 @@ int capfs_backend_destroy(void *st)
 
 
 
-/*
- * ============================================================================
- * Cells
- * ============================================================================
- *
- * In this backend data is stored in cells. Each cell stores eight bytes of data
- * and a one byte of meta data i.e. flags
- */
 
-/**
- * @brief the ID of the cell
- *
- * cells are organized in a logical array and the cell id is the element index
- * into this array.
- */
-typedef uint64_t cellid_t;
-
-/**
- * @brief the number of data blocks in a cell
- */
-#define CAPSTORE_CELL_DATA_BLOCKS 63
-
-#define CAPSTORE_CALL_DATA_BLOCK_SIZE sizeof(uint64_t)
-
-/**
- * @brief the number of bytes stored in a data cell
- */
-#define CAPSTORE_CELL_DATA_SIZE (CAPSTORE_CELL_DATA_BLOCKS * sizeof(uint64_t))
-
-/**
- * @brief the size of the entire cell in bytes
- */
-#define CAPSTORE_CELL_SIZE (64 * sizeof(uint64_t))
-
-/**
- * @brief the layout of a data cell in the cap store
- *
- * the data cell consists of 63 data blocks and a 64bit word of flags
- */
-struct capstore_cell
-{
-    uint64_t data[CAPSTORE_CELL_DATA_BLOCKS];
-    uint64_t flags;
-};
-
-static_assert(sizeof(struct capstore_cell) == CAPSTORE_CELL_SIZE,
-              "Size of the capstore cell is not a 64x64 bytes");
-
-
-
-/**
- * @brief
- * @param addr
- * @return
- */
-static cellid_t capstore_addr2cellid(size_t addr)
-{
-    return (addr / CAPSTORE_CELL_DATA_SIZE);
-}
-
-/**
- * @brief
- * @param addr
- * @return
- */
-static uintptr_t capstore_addr2celloffset(uintptr_t addr)
-{
-    return (addr % CAPSTORE_CELL_DATA_SIZE);
-}
-
-static uint8_t capstore_addr2cellblock(uintptr_t addr)
-{
-    return (addr % CAPSTORE_CELL_DATA_SIZE) / sizeof(uint64_t);
-}
-
-#if 0
-/**
- * @brief
- * @param cid
- * @return
- */
-static size_t capstore_cellid2addr(cellid_t cid)
-{
-    return (cid * CAPSTORE_CELL_DATA_SIZE);
-}
-#endif
-
-#define CAPSTORE_CELL_FLAG_MASK(from, to) \
-    (((1UL << (to + 1)) - 1) & ~((1UL << from) - 1))
-
-static void capstore_cell_set_flags(struct capstore_cell *cell,
-                                    uint8_t from, uint8_t to)
-{
-    cell->flags |= CAPSTORE_CELL_FLAG_MASK(from, to);
-}
-
-static void capstore_cell_clear_flags(struct capstore_cell *cell,
-                                    uint8_t from, uint8_t to)
-{
-    cell->flags &= ~CAPSTORE_CELL_FLAG_MASK(from, to);
-}
-
-
-
-static int capstore_cell_rawwr(cellid_t cellid, struct capstore_cell *cell)
-{
-    if (g_st.file == NULL) {
-        return -1;
-    }
-
-    if (cellid >= g_st.num_cells) {
-        return -1;
-    }
-
-    if (fseek(g_st.file, cellid * CAPSTORE_CELL_SIZE, SEEK_SET)) {
-        return -1;
-    }
-
-    if (fwrite(cell, 1, CAPSTORE_CELL_SIZE,g_st.file) != 1) {
-        return ferror(g_st.file);
-    }
-
-    return 0;
-}
-
-
-
-
-static int capstore_cell_rawread(cellid_t cellid, struct capstore_cell *cell)
-{
-   if (g_st.file == NULL) {
-        return -1;
-    }
-
-    if (cellid >= g_st.num_cells) {
-        return -1;
-    }
-
-    if (fseek(g_st.file, cellid * CAPSTORE_CELL_SIZE, SEEK_SET)) {
-        return -1;
-    }
-
-    if (fread(cell, 1, CAPSTORE_CELL_SIZE, g_st.file) != 1) {
-        return ferror(g_st.file);
-    }
-
-    return 0;
-}
-
-
-
-
-static long capstore_cell_read(uintptr_t addr, void *rbuf, size_t bytes)
-{
-    int err;
-
-    cellid_t cid = capstore_addr2cellid(addr);
-
-    /* if the first or the last cell id is bigger than */
-    if (cid >= g_st.num_cells || capstore_addr2cellid(addr + bytes) >= g_st.num_cells) {
-        return -1;
-    }
-
-    static struct capstore_cell tmpcell;
-
-    uintptr_t offset = capstore_addr2celloffset(addr);
-    if (offset) {
-        err = capstore_cell_rawread(cid, &tmpcell);
-        if (err != 0) {
-            return err;
-        }
-
-        memcpy(rbuf, ((uint8_t *)(tmpcell.data)) + offset, CAPSTORE_CELL_DATA_SIZE - offset);
-        cid++;
-        bytes -= CAPSTORE_CELL_DATA_SIZE - offset;
-        rbuf = ((uint8_t *)rbuf) + CAPSTORE_CELL_DATA_SIZE - offset;
-    }
-
-    while(bytes > 0) {
-        err = capstore_cell_rawread(cid, &tmpcell);
-        if (err != 0) {
-            return err;
-        }
-
-        if (bytes > CAPSTORE_CELL_DATA_SIZE) {
-            memcpy(rbuf, tmpcell.data, CAPSTORE_CELL_DATA_SIZE);
-            bytes -= CAPSTORE_CELL_DATA_SIZE;
-            rbuf = ((uint8_t *)rbuf) + CAPSTORE_CELL_DATA_SIZE;
-        } else {
-            memcpy(rbuf, tmpcell.data, bytes);
-            bytes = 0;
-        }
-        cid++;
-    }
-
-    return 0;
-}
-
-static long capstore_cell_write(uintptr_t addr, const void *wbuf, uint64_t bytes)
-{
-    int err;
-
-    cellid_t cid = capstore_addr2cellid(addr);
-
-    int64_t written = 0;
-
-    /* if the first or the last cell id is bigger than */
-    if (cid >= g_st.num_cells || capstore_addr2cellid(addr + bytes)  >= g_st.num_cells) {
-        return -1;
-    }
-
-    static struct capstore_cell tmpcell;
-
-    uintptr_t offset = capstore_addr2celloffset(addr);
-    if (offset) {
-        err = capstore_cell_rawread(cid, &tmpcell);
-        if (err != 0) {
-            return err;
-        }
-
-        written += CAPSTORE_CELL_DATA_SIZE - offset;
-
-        memcpy(((uint8_t *)(tmpcell.data)) + offset, wbuf, CAPSTORE_CELL_DATA_SIZE - offset);
-        capstore_cell_clear_flags(&tmpcell, offset, CAPSTORE_CELL_DATA_BLOCKS);
-
-        err = capstore_cell_rawwr(cid, &tmpcell);
-        if (err != 0) {
-            return err;
-        }
-        cid++;
-        bytes -= CAPSTORE_CELL_DATA_SIZE - offset;
-        wbuf = ((uint8_t *)wbuf) + CAPSTORE_CELL_DATA_SIZE - offset;
-    }
-
-    while(bytes > 0) {
-
-        if (bytes > CAPSTORE_CELL_DATA_SIZE) {
-            memcpy( tmpcell.data, wbuf, CAPSTORE_CELL_DATA_SIZE);
-            tmpcell.flags = 0;
-            err = capstore_cell_rawwr(cid, &tmpcell);
-            if (err != 0) {
-                return err;
-            }
-            written += CAPSTORE_CELL_DATA_SIZE;
-            bytes -= CAPSTORE_CELL_DATA_SIZE;
-            wbuf = ((uint8_t *)wbuf) + CAPSTORE_CELL_DATA_SIZE;
-        } else {
-            err = capstore_cell_rawread(cid, &tmpcell);
-            if (err != 0) {
-                return err;
-            }
-
-            memcpy(tmpcell.data, wbuf, bytes);
-
-            capstore_cell_clear_flags(&tmpcell, 0, (bytes + sizeof(uint64_t) - 1) / sizeof(uint64_t));
-            err = capstore_cell_rawwr(cid, &tmpcell);
-            if (err != 0) {
-                return err;
-            }
-            written += bytes;
-            bytes = 0;
-
-        }
-        cid++;
-    }
-
-    return written;
-}
-
-
-
-
-
-
-
-/*
- * ============================================================================
- * Capability
- * ============================================================================
- */
-
-
-static void capability_decompress(uint64_t comp, struct capability *cap)
-{
-    cap->base = (comp & 0xffffffffffff);
-    cap->size_bits = (uint8_t)((comp >> 48) & 0xff);
-    cap->size  = (1UL << cap->size_bits);
-    cap->perms = (uint8_t)(comp >> 56);
-}
-
-static uint64_t capability_compres(struct capability *cap)
-{
-    return ((uint64_t)cap->size_bits << 48) | (cap->base & 0xffffffffffff) |
-           ((uint64_t)cap->perms << 56);
-
-}
-
-
-
-/*
- * ===========================================================================
- * Capability to Capref Conversion
- * ===========================================================================
- *
- * XXX: We implement a dummy capability to capref conversion here. This is
- *      not considered to be save
- */
-
-#define CAPFS_CAPREF_SALT (0xAAAAAAAAAAAAAAAAUL)
-
-int capref_to_capability(capfs_capref_t cap, struct capability *ret_cap)
-{
-    capability_decompress(cap.capaddr ^ CAPFS_CAPREF_SALT, ret_cap);
-
-    return 0;
-}
-
-int capability_to_capref(struct capability *cap, capfs_capref_t *ret_cap)
-{
-    ret_cap->capaddr = capability_compres(cap) ^ CAPFS_CAPREF_SALT;
-
-    return 0;
-}
 
 /*
  * ===========================================================================
@@ -526,11 +489,6 @@ int capfs_backend_get_cap(capfs_capref_t cap,
 {
     int err;
 
-    /* check the offset for storing the cap */
-    if (offset & (sizeof(CAPSTORE_CALL_DATA_BLOCK_SIZE) - 1)) {
-        return -1;
-    }
-
     struct capability c;
     if (capref_to_capability(cap, &c)) {
         return -1;
@@ -541,27 +499,22 @@ int capfs_backend_get_cap(capfs_capref_t cap,
     }
 
 
-    if ((offset + sizeof(uint64_t) >= c.size)) {
+    if ((offset + sizeof(capfs_capref_t) >= c.size)) {
         return -1;
     }
 
+    if (!metadata_is_capability(offset)) {
+        return -EACCES;
+    }
 
-    cellid_t cid = capstore_addr2cellid(c.base + offset);
-
-    static struct capstore_cell tmpcell;
-    err = capstore_cell_rawread(cid, &tmpcell);
+    uint64_t data = 0;
+    err = capstore_rawread(c.base + offset, (void *)&data, sizeof(uint64_t));
     if (err != 0) {
         return err;
     }
 
-    uint8_t bid = capstore_addr2cellblock(c.base + offset);
-
-    if (!(tmpcell.flags & (1UL << bid))) {
-        return -1;
-    }
-
     struct capability nc;
-    capability_decompress(tmpcell.data[bid], &nc);
+    capability_decompress(data, &nc);
 
     return capability_to_capref(&nc, retcap);
 };
@@ -580,10 +533,6 @@ int capfs_backend_put_cap(capfs_capref_t cap,
 {
     int err;
 
-    /* check the offset for storing the cap */
-    if (offset & (sizeof(CAPSTORE_CALL_DATA_BLOCK_SIZE) - 1)) {
-        return -1;
-    }
 
     struct capability c;
     if (capref_to_capability(cap, &c)) {
@@ -605,20 +554,14 @@ int capfs_backend_put_cap(capfs_capref_t cap,
     }
 
 
-    cellid_t cid = capstore_addr2cellid(c.base + offset);
+    uint64_t data = capability_compres(&nc);
 
-    static struct capstore_cell tmpcell;
-    err = capstore_cell_rawread(cid, &tmpcell);
-    if (err != 0) {
+    err = capstore_rawwrite(c.base + offset, (void *)&data, sizeof(uint64_t));
+    if (err) {
         return err;
     }
 
-    uint8_t bid = capstore_addr2cellblock(c.base + offset);
-
-    tmpcell.data[bid] = capability_compres(&nc);
-    capstore_cell_set_flags(&tmpcell, bid, bid);
-
-    return capstore_cell_rawwr(cid, &tmpcell);
+    return metadata_set_valid_bits(c.base + offset, c.base + offset);
 }
 
 
@@ -644,20 +587,36 @@ long capfs_backend_read(capfs_capref_t cap, off_t offset,
 {
     struct capability c;
     if (capref_to_capability(cap, &c)) {
+        LOGA("capability conversion failed\n");
         return -1;
     }
+
+    dump_capability(&c);
 
     if (!(c.perms & CAPFS_CAPABILITY_PERM_READ)) {
         return -EACCES;
     }
 
+    LOG("offset=%li, bytes=%zu, rbuf=%p\n", offset, bytes, rbuf);
 
-    if (offset + bytes >= (1UL << c.size)) {
-        bytes = (1UL << c.size) - offset;
+    if (offset < 0) {
+        return -1;
     }
-    assert(offset + bytes < (1UL << c.size));
 
-    return capstore_cell_read(c.base + offset, rbuf, bytes);
+    if (offset + bytes >= c.size) {
+        LOG("cap size: %lx, requested range %lx..%lx",
+            c.size, offset, offset+bytes);
+        return -1;
+    }
+
+
+
+    assert(offset + bytes < c.size);
+    if(capstore_rawread(c.base + offset, rbuf, bytes)) {
+        return -1;
+    }
+
+    return bytes;
 }
 
 /**
@@ -682,18 +641,58 @@ long capfs_backend_write(capfs_capref_t cap, off_t offset,
         return -EACCES;
     }
 
-    if (offset < 0) {
-        return 0;
-    }
+    LOG("offset=%li, bytes=%zu, rbuf=%p\n", offset, bytes, wbuf);
 
-    if ((size_t)offset > (1UL << c.size)) {
+    if (offset < 0) {
         return -1;
     }
 
-    if (offset + bytes >= (1UL << c.size)) {
-        bytes = (1UL << c.size) - offset;
+    if (offset + bytes >= c.size) {
+        return -1;
     }
-    assert(offset + bytes < (1UL << c.size));
 
-    return capstore_cell_write(c.base + offset, wbuf, bytes);
+    metadata_clear_valid_bits(c.base + offset, c.base + offset + bytes);
+
+    assert(offset + bytes < c.size);
+
+    if(capstore_rawwrite(c.base + offset, wbuf, bytes)) {
+        return -1;
+    }
+
+    return bytes;
+}
+
+
+static const char zero[256] = {0};
+
+/**
+ * @brief zeroes the entire capability
+ *
+ * @param cap   the capability to be zeroed
+ *
+ * @return ERR_OK on success error value on failure
+ *
+ * Note this is equivalent to capfs_backend_write with a zeroed buffer of
+ * size of the capability.
+ */
+int capfs_backend_zero(capfs_capref_t cap)
+{
+    struct capability c;
+    if (capref_to_capability(cap, &c)) {
+        return -1;
+    }
+
+    if (!(c.perms & CAPFS_CAPABILITY_PERM_WRITE)) {
+        return -EACCES;
+    }
+
+    for (size_t offset = 0; offset < c.size; offset += 256) {
+        if (c.size > offset + 256) {
+            capfs_backend_write(cap, offset, zero, 256);
+        } else {
+            capfs_backend_write(cap, offset, zero, c.size - offset);
+        }
+    }
+
+    return 0;
 }

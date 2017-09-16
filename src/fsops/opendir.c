@@ -45,14 +45,17 @@ int capfs_op_opendir(const char * path, struct fuse_file_info * fi)
     assert(path);
 
     capfs_capref_t cap;
-    if (capfs_backend_resolve_path(CAPFS_ROOTCAP, path, &cap)) {
+    if (capfs_filesystem_resolve_path(CAPFS_ROOTCAP, path, &cap)) {
         LOG("path '%s' not found\n", path);
         return -EINVAL;
     }
 
+    struct capfs_filesystem_meta_data md;
+    if (capfs_filesystem_get_metadata(cap, &md)) {
+        return -ENOENT;
+    }
 
-    capfs_filetype_t ft = capfs_backend_get_filetype_cap(cap);
-    switch(ft) {
+    switch(md.type) {
         case CAP_FS_FILETYPE_ROOT:
         case CAP_FS_FILETYPE_DIRECTORY:
             break;
@@ -67,9 +70,9 @@ int capfs_op_opendir(const char * path, struct fuse_file_info * fi)
     }
 
     h->cap = cap;
-    h->type = ft;
-    capfs_backend_get_capsize(cap, &h->size);
-    h->perms = capfs_backend_get_perms(cap);
+    h->type = md.type;
+    h->size = md.bytes;
+    h->perms = md.perms;
 
     fi->fh = (uint64_t)h;
 

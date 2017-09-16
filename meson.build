@@ -55,7 +55,8 @@ include_dirs = [
 # source files
 capfs_sources = [
     'src/capfs.c',
-    'src/backend_dummy.c',
+    'src/main.c',
+    'src/filesystem.c',
     'src/fsops/init.c',
     'src/fsops/destroy.c',
     'src/fsops/getattr.c',
@@ -105,10 +106,17 @@ configure_file(output: 'config.h',
 
 
 # build
-executable('capfs', capfs_sources,
+executable('capfs', capfs_sources  + ['src/backends/files.c'],
            include_directories: include_dirs,
            dependencies: capfs_deps,
            c_args: ['-DFUSE_USE_VERSION=31'],
            install: true,
            install_dir: get_option('bindir'))
 
+# build
+executable('capfs-dummy', capfs_sources + ['src/backends/dummy.c'],
+           include_directories: include_dirs,
+           dependencies: capfs_deps,
+           c_args: ['-DFUSE_USE_VERSION=31'],
+           install: true,
+           install_dir: get_option('bindir'))

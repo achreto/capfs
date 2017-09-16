@@ -62,16 +62,18 @@ int capfs_op_getattr(const char * path, struct stat * stbuf,
         perms = h->perms;
     } else {
         capfs_capref_t cap;
-        if (capfs_backend_resolve_path(CAPFS_ROOTCAP, path, &cap)) {
+        if (capfs_filesystem_resolve_path(CAPFS_ROOTCAP, path, &cap)) {
             return -ENOENT;
         }
 
-        t = capfs_backend_get_filetype_cap(cap);
-        perms = capfs_backend_get_perms(cap);
-        if (capfs_backend_get_capsize(cap, &sz)) {
+        struct capfs_filesystem_meta_data md;
+        if (capfs_filesystem_get_metadata(cap, &md)) {
             return -ENOENT;
         }
 
+        t = md.type;
+        perms = md.perms;
+        sz = md.bytes;
     }
 
     switch (t) {

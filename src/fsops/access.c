@@ -45,14 +45,19 @@ int capfs_op_access(const char * path, int mask)
     LOG("path='%s, mask=0x%x'\n", path, mask);
 
     capfs_capref_t cap;
-    if (capfs_backend_resolve_path(CAPFS_ROOTCAP, path, &cap)) {
+    if (capfs_filesystem_resolve_path(CAPFS_ROOTCAP, path, &cap)) {
         return -ENOENT;
     }
 
-    switch(capfs_backend_get_filetype_cap(cap)) {
+    struct capfs_filesystem_meta_data md;
+    if (capfs_filesystem_get_metadata(cap, &md)) {
+        return -ENOENT;
+    }
+
+    switch(md.type) {
         case CAP_FS_FILETYPE_NONE :
             return -ENOENT;
         default:
-            return (mask & capfs_backend_get_perms(cap));
+            return (mask & md.type);
     }
 }

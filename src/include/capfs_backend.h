@@ -32,9 +32,25 @@
 
 /*
  * ============================================================================
+ * CAPFS Capability Permissions
+ * ============================================================================
+ */
+
+typedef uint8_t capfs_capperms_t;
+#define CAPFS_CAPABILITY_PERM_NONE   0
+#define CAPFS_CAPABILITY_PERM_READ  (1 << 1)
+#define CAPFS_CAPABILITY_PERM_WRITE (1 << 2)
+#define CAPFS_CAPABILITY_PERM_EXEC  (1 << 3)
+#define CAPFS_CAPABILITY_PERM_ALL (CAPFS_CAPABILITY_PERM_READ    \
+                                   | CAPFS_CAPABILITY_PERM_WRITE \
+                                   | CAPFS_CAPABILITY_PERM_EXEC)
+
+/*
+ * ============================================================================
  * Backend initialization
  * ============================================================================
  */
+
 
 /**
  * @brief initializes the backend
@@ -43,6 +59,8 @@
  * @param cfg       the FUSE configuration
  *
  * @return pointer to allocated backend data structure
+ *
+ * Note this also obtains the root capability for the backend
  */
 void *capfs_backend_init(struct fuse_conn_info * conn,
                          struct fuse_config * cfg);
@@ -60,93 +78,14 @@ int capfs_backend_destroy(void *st);
 
 /*
  * ============================================================================
- * Obtaining the root capability
+ * The root capability to the path
  * ============================================================================
  */
 
 
-/**
- * @brief obtains the root capability of the file system
- *
- * @return root capability or null cap
- */
-capfs_capref_t capfs_backend_get_rootcap(void);
+extern capfs_capref_t capfs_root_capability;
 
-#define CAPFS_ROOTCAP capfs_backend_get_rootcap()
-
-/*
- * ============================================================================
- * Resolving
- * ============================================================================
- */
-
-/**
- * @brief resolves a path and obtains a capability to the resource
- *
- * @param root      the root cap to start with
- * @param path      the path to resolve relative to the root cap
- * @param retcap    the returned capability of the resolved path
- *
- * @return error number TODO: possible error values
- */
-int capfs_backend_resolve_path(capfs_capref_t root,
-                               const char *path,
-                               capfs_capref_t *retcap);
-
-
-/*
- * ============================================================================
- * Accessing a directory
- * ============================================================================
- */
-
-
-/**
- * @brief reads an entry of the directory
- *
- * @param cap       the directory capability
- * @param offset    offset into the directory capability
- *
- * @return string of the entry name or NULL if there is none
- */
-const char *capfs_backend_get_direntry(capfs_capref_t cap,
-                                       off_t offset);
-
-
-/*
- * ===========================================================================
- * Functions to obtain the meta data
- * ===========================================================================
- */
-
-
-/**
- * @brief obtais the file type of a capability
- *
- * @param cap   the capability
- *
- * @return capfs file type
- */
-capfs_filetype_t capfs_backend_get_filetype_cap(capfs_capref_t cap);
-
-/**
- * @brief returns the size of the capability
- *
- * @param cap       the capability
- * @param retsize   returns the size of the capability
- *
- * @return error number TODO: possible error values
- */
-int capfs_backend_get_capsize(capfs_capref_t cap, size_t *retsize);
-
-/**
- * @brief obtains the permissions to access the capability
- *
- * @param cap   the capability
- *
- * @return the capability permissions
- */
-int capfs_backend_get_perms(capfs_capref_t cap);
+#define CAPFS_ROOTCAP capfs_root_capability
 
 
 /*
@@ -154,6 +93,7 @@ int capfs_backend_get_perms(capfs_capref_t cap);
  * Load and store capabilities
  * ===========================================================================
  */
+
 
 /**
  * @brief loads a capability inside another capability
@@ -182,9 +122,56 @@ int capfs_backend_put_cap(capfs_capref_t cap,
 
 /*
  * ===========================================================================
+ * Capability Meta Information
+ * ===========================================================================
+ */
+
+/**
+ * @brief obtains the permissions of the capability
+ *
+ * @param cap   capability to obtain the permissions for
+ *
+ * @return capability permissions
+ */
+capfs_capperms_t  capfs_backend_cap_get_perms(capfs_capref_t cap);
+
+/**
+ * @brief obtains the size of the capability
+ *
+ * @param cap   the capablity to obtain the size from
+ *
+ * @return size of the capabilty
+ */
+uint64_t capfs_backend_cap_get_size(capfs_capref_t cap);
+
+/*
+ * ===========================================================================
+ * Capability Operations
+ * ===========================================================================
+ */
+
+/**
+ * @brief creates a new capability based on the previous one
+ *
+ * @param cap       the capability to be minted
+ * @param offset    offset into the capability
+ * @param bytes     size of the new capbility in bytes
+ * @param perms     permissions of the new capability
+ * @param ret_cap   returned capability
+ *
+ * @return zero on SUCCESS or error number on failure
+ */
+int capfs_backend_cap_mint(capfs_capref_t cap, uintptr_t offset, size_t bytes,
+                           capfs_capperms_t perms, capfs_capref_t *ret_cap);
+
+
+
+/*
+ * ===========================================================================
  * Read and write capability data
  * ===========================================================================
  */
+
 
 /**
  * @brief reads data from a capability
@@ -196,8 +183,8 @@ int capfs_backend_put_cap(capfs_capref_t cap,
  *
  * @return read bytes or error number TODO: possible error values
  */
-int capfs_backend_read(capfs_capref_t cap, off_t offset,
-                                char *rbuf, size_t bytes);
+long capfs_backend_read(capfs_capref_t cap, off_t offset,
+                        char *rbuf, size_t bytes);
 
 /**
  * @brief writes data into a capability
@@ -209,8 +196,21 @@ int capfs_backend_read(capfs_capref_t cap, off_t offset,
  *
  * @return written bytes or error number TODO: possible error values
  */
-int capfs_backend_write(capfs_capref_t cap, off_t offset,
-                               const char *wbuf, size_t bytes);
+long capfs_backend_write(capfs_capref_t cap, off_t offset,
+                         const char *wbuf, size_t bytes);
 
+
+
+/**
+ * @brief zeroes the entire capability
+ *
+ * @param cap   the capability to be zeroed
+ *
+ * @return ERR_OK on success error value on failure
+ *
+ * Note this is equivalent to capfs_backend_write with a zeroed buffer of
+ * size of the capability.
+ */
+int capfs_backend_zero(capfs_capref_t cap);
 
 #endif //CAP_FS_BACKEND_H_H

@@ -38,7 +38,8 @@
  * @param mode  new permissions
  * @param fi    the FUSE file info
  *
- * @return
+ * @return On success, zero is returned.
+ *         On error, -1 is returned, and errno is set appropriately.
  *
  * Only the permissions bits of mode should be examined. See chmod(2) for 
  * details.
@@ -51,6 +52,8 @@ int capfs_op_chmod(const char * path, mode_t mode,
     (void)path;
     (void)mode;
     (void)fi;
+
+    errno = -EACCES;
 
     NYI();
 }
