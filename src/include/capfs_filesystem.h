@@ -50,6 +50,15 @@ struct capfs_filesystem_meta_data
  */
 int capfs_filesystem_init(capfs_capref_t root);
 
+/**
+ * @brief formats the space pointed to by capability for use as a file system
+ *
+ * @param root  root capability of the file system
+ *
+ * @return ERR_OK on sucecss, error value on failure
+ */
+int capfs_filesystem_format(capfs_capref_t root);
+
 
 /**
  * @brief resolves a path relative to a given root.

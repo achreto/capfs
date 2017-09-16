@@ -46,6 +46,7 @@
 #include <capfs_handle.h>
 #include <capfs_backend.h>
 #include <capfs_fsops.h>
+#include <capfs_filesystem.h>
 
 
 #include <stdbool.h>
