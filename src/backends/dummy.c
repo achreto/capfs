@@ -41,6 +41,12 @@
 #include <pthread.h>
 
 
+/**
+ * the root capability
+ */
+capfs_capref_t capfs_root_capability;
+
+
 /*
  * ============================================================================
  * some dummy capability store
@@ -60,7 +66,7 @@ static struct capability capstore[] = {
     {
             .name = "/",
             .perms = 0755,
-            .payload = NULL,
+            .payload = "sdfsdfsfsdasd",
             .type = CAP_FS_FILETYPE_ROOT
     },
     {
@@ -126,6 +132,8 @@ void *capfs_backend_init(struct fuse_conn_info * conn,
 
     (void)conn;
     (void)cfg;
+
+    capfs_root_capability.capaddr = 0;
 
     return NULL;
 }
@@ -325,7 +333,7 @@ int capfs_backend_put_cap(capfs_capref_t cap,
  */
 
 
-int capfs_backend_read(capfs_capref_t cap, off_t offset,
+long capfs_backend_read(capfs_capref_t cap, off_t offset,
                        char *rbuf, size_t bytes)
 {
     LOG("cap=" PRIxCAP ", offset=%li, rbuf=%p, size=%zu\n", PRI_CAP(cap), offset,
@@ -338,6 +346,9 @@ int capfs_backend_read(capfs_capref_t cap, off_t offset,
     if (offset < 0) {
         offset = 0;
     }
+
+
+
 
     struct capability *c = &capstore[cap.capaddr];
     if (c->type != CAP_FS_FILETYPE_FILE) {
@@ -366,7 +377,7 @@ int capfs_backend_read(capfs_capref_t cap, off_t offset,
     return i;
 }
 
-int capfs_backend_write(capfs_capref_t cap, off_t offset,
+long capfs_backend_write(capfs_capref_t cap, off_t offset,
                         const char *wbuf, size_t bytes)
 {
     LOG("cap=" PRIxCAP ", offset=%li, wbuf=%p, size=%zu\n", PRI_CAP(cap), offset,
@@ -377,3 +388,44 @@ int capfs_backend_write(capfs_capref_t cap, off_t offset,
     return 0;
 }
 
+int capfs_backend_zero(capfs_capref_t cap)
+{
+    (void)cap;
+
+    return -1;
+}
+
+
+/*
+ * ===========================================================================
+ * Capability Meta Information
+ * ===========================================================================
+ */
+
+/**
+ * @brief obtains the permissions of the capability
+ *
+ * @param cap   capability to obtain the permissions for
+ *
+ * @return capability permissions
+ */
+capfs_capperms_t  capfs_backend_cap_get_perms(capfs_capref_t cap)
+{
+    (void)cap;
+
+    return 0;
+}
+
+/**
+ * @brief obtains the size of the capability
+ *
+ * @param cap   the capablity to obtain the size from
+ *
+ * @return size of the capabilty
+ */
+uint64_t capfs_backend_cap_get_size(capfs_capref_t cap)
+{
+    (void)cap;
+
+    return 0;
+}
