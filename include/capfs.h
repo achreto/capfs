@@ -49,6 +49,7 @@ typedef enum {
 } capfs_filetype_t;
 
 
+
 /**
  * @brief stub representation for capabilities
  */
@@ -93,7 +94,7 @@ union capfs_ioctl_args {
 };
 
 /**
- * @brief CAP-FS IOCTL results
+ * @brief CAPFS IOCTL results
  */
 union capfs_ioctl_res {
     struct {
@@ -120,4 +121,4 @@ int capfs_ioctl_path(const char * path, capfs_ioctl_op_t op,
                      union capfs_ioctl_args * args, union capfs_ioctl_res * res);
 
 
-#endif //CAPFS_H    
+#endif //CAPFS_H
