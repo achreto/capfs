@@ -45,6 +45,14 @@
         __FUNCTION__, __LINE__); } while(0)
 
 
+/* debugging utility */
+#define PANIC(err, format, args...)                        \
+    do {fprintf(stderr, "## cap-fs # %s:%u # %u " format, \
+        __FUNCTION__, __LINE__, err, args);                 \
+        exit(err); } while(0)
+
+
+
 /* macro for not yet implemented functions */
 #define NYI() LOG("%s\n", "FILESYSTEM OPERATION NOT YET IMPLEMENTED"); \
               return -ENOTSUP;
