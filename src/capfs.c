@@ -41,70 +41,51 @@
 #include <pthread.h>
 
 
-int verbosity = 0;
-
-
-/**
- * @brief the FUSE operations for the CAP-FS
+/*
+ *
  */
 
-static struct fuse_operations capfs_ops = {
-        .init       = capfs_op_init,
-        .getattr    = capfs_op_getattr,
-        .access     = capfs_op_access,
-        .opendir    = capfs_op_opendir,
-        .readdir    = capfs_op_readdir,
-        .releasedir = capfs_op_releasedir,
-        .readlink   = capfs_op_readlink,
-        .mknod      = capfs_op_mknod,
-        .mkdir      = capfs_op_mkdir,
-        .symlink    = capfs_op_symlink,
-        .unlink     = capfs_op_unlink,
-        .rmdir      = capfs_op_rmdir,
-        .rename     = capfs_op_rename,
-        .link       = capfs_op_link,
-        .chmod      = capfs_op_chmod,
-        .chown      = capfs_op_chown,
-        .truncate   = capfs_op_truncate,
-        .utimens    = capfs_op_utimens,
-        .open       = capfs_op_open,
-        .flush      = capfs_op_flush,
-        .fsync      = capfs_op_fsync,
-        .release    = capfs_op_release,
-        .read       = capfs_op_read,
-        .write      = capfs_op_write,
-        .statfs     = capfs_op_statfs,
-        .create     = capfs_op_create,
-        .ioctl      = capfs_op_ioctl,
-        .destroy    = capfs_op_destroy,
+#define CAPFS_ROOT_MAGIC 0x0cabf5cabf5cabf5cab
+
+/**
+ * @brief the capfs root data structure
+ */
+struct capfs_root
+{
+    uint64_t magic;         ///< magic value to
+    size_t   capacity;      ///< the capacity of the region in bytes
+    size_t   freeX;          ///< number of not allocated bytes
+
+    capfs_capref_t free;    ///<
+
+    uint32_t checksum;      ///< checksum for the header
 };
 
-/**
- * @brief the cap-fs state
- */
-struct cap_fs capfs_st;
-
-/**
- * @brief cp-fs main function
- * @param argc
- * @param argv
- * @return
- */
-int main(int argc, char * argv[]) {
-    struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
-
-    LOG("%s", "-----------------------------------------------\n");
-    LOG("CAP-FS version %s\n", PACKAGE_VERSION);
-    LOG("FUSE library version %s\n", fuse_pkgversion());
-    fuse_lowlevel_version();
-    LOG("%s", "-----------------------------------------------\n");
 
 
-    /* TODO: initialize the connection to the capability  */
 
-    capfs_st.initialized = true;
+struct capfs_region {
+    uint64_t magic;
+    uint32_t checksum;
+};
 
-    LOG("%s\n", "calling fuse_main\n");
+struct capfs_directory
+{
+    const char name[32];
+    int perms;
+    capfs_capref_t entries; ///< capability to all the directory entries
+};
 
-    return fuse_main(args.argc, args.argv, &capfs_ops, NULL);
-}
+
+struct capfs_file
+{
+    const char  name[32];
+    int perms;                  ///< permissions for this file
+    size_t bytes;               ///< number of used bytes
+    capfs_capref_t content;     ///< capability to the file content
+};
+
+struct capfs_free
+{
+
+};
